@@ -10,13 +10,14 @@ import GoogleSignIn
 @MainActor
 final class AuthViewModel: ObservableObject {
     // Inputs
-    @Published var displayName: String = ""     // NEW
+    @Published var displayName: String = ""
     @Published var email: String = ""
     @Published var password: String = ""
 
     // Outputs
     @Published var userSession: FirebaseAuth.User? = nil
     @Published var errorMessage: String? = nil
+    @Published var isLoading: Bool = false
 
     private var handle: AuthStateDidChangeListenerHandle?
 
@@ -24,19 +25,31 @@ final class AuthViewModel: ObservableObject {
         handle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             self?.userSession = user
         }
+        // Check if there's already a signed-in user
+        self.userSession = Auth.auth().currentUser
     }
-    deinit { if let handle { Auth.auth().removeStateDidChangeListener(handle) } }
+    
+    deinit { 
+        if let handle { 
+            Auth.auth().removeStateDidChangeListener(handle) 
+        } 
+    }
 
     func signIn() async {
         errorMessage = nil
+        isLoading = true
         do {
             let result = try await Auth.auth().signIn(withEmail: email, password: password)
             self.userSession = result.user
-        } catch { self.errorMessage = error.localizedDescription }
+        } catch {
+            self.errorMessage = "Sign in failed: \(error.localizedDescription)"
+        }
+        isLoading = false
     }
 
     func signUp() async {
         errorMessage = nil
+        isLoading = true
         do {
             let result = try await Auth.auth().createUser(withEmail: email, password: password)
             // set displayName
@@ -46,28 +59,94 @@ final class AuthViewModel: ObservableObject {
                 try await change.commitChanges()
             }
             self.userSession = Auth.auth().currentUser
-        } catch { self.errorMessage = error.localizedDescription }
+        } catch {
+            self.errorMessage = "Sign up failed: \(error.localizedDescription)"
+        }
+        isLoading = false
     }
 
     func signOut() {
         errorMessage = nil
         PlayerViewModel.shared.clearQueueAndUI()
-        do { try Auth.auth().signOut(); self.userSession = nil }
-        catch { self.errorMessage = error.localizedDescription }
+        do { 
+            try Auth.auth().signOut()
+            self.userSession = nil
+        } catch { 
+            self.errorMessage = "Sign out failed: \(error.localizedDescription)"
+        }
     }
 
-    // Optional: Google Sign-In (works once the SDK is added through SPM)
+    // Enhanced Google Sign-In with better error handling and debugging
     func signInWithGoogle(presenting: UIViewController) async {
         errorMessage = nil
+        isLoading = true
+        
         #if canImport(GoogleSignIn)
         do {
+            // Configure Google Sign-In
+            guard let clientID = FirebaseApp.app()?.options.clientID else {
+                errorMessage = "Firebase client ID not found. Please check GoogleService-Info.plist"
+                isLoading = false
+                return
+            }
+            
+            let config = GIDConfiguration(clientID: clientID)
+            GIDSignIn.sharedInstance.configuration = config
+            
+            // Perform sign in
             let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenting)
-            guard let idToken = result.user.idToken?.tokenString else { return }
-            let credential = GoogleAuthProvider.credential(withIDToken: idToken,
-                                                           accessToken: result.user.accessToken.tokenString)
+            
+            guard let idToken = result.user.idToken?.tokenString else {
+                errorMessage = "Failed to get ID token from Google Sign-In"
+                isLoading = false
+                return
+            }
+            
+            // Create Firebase credential
+            let credential = GoogleAuthProvider.credential(
+                withIDToken: idToken,
+                accessToken: result.user.accessToken.tokenString
+            )
+            
+            // Sign in to Firebase
             let authResult = try await Auth.auth().signIn(with: credential)
             self.userSession = authResult.user
-        } catch { self.errorMessage = error.localizedDescription }
+            
+            // Success feedback
+            ToastCenter.shared.success("Signed in as \(authResult.user.email ?? "User")")
+            
+        } catch let error as NSError {
+            // Handle specific Google Sign-In errors
+            if error.domain == "com.google.GIDSignIn" {
+                switch error.code {
+                case -1: // Cancelled by user
+                    errorMessage = "Sign in was cancelled"
+                case -2: // Keychain error
+                    errorMessage = "Keychain error. Please try again"
+                case -4: // No current user
+                    errorMessage = "No Google account selected"
+                case -5: // EMM error
+                    errorMessage = "Google Sign-In configuration error"
+                default:
+                    errorMessage = "Google Sign-In error: \(error.localizedDescription)"
+                }
+            } else {
+                errorMessage = "Authentication failed: \(error.localizedDescription)"
+            }
+        }
+        #else
+        errorMessage = "Google Sign-In SDK not available. Please add GoogleSignIn via Swift Package Manager."
+        #endif
+        
+        isLoading = false
+    }
+    
+    // Check Google Sign-In availability
+    func isGoogleSignInAvailable() -> Bool {
+        #if canImport(GoogleSignIn)
+        return true
+        #else
+        return false
         #endif
     }
 }
