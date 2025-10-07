@@ -4,7 +4,6 @@ import UIKit
 
 struct SignupView: View {
     @EnvironmentObject private var authVM: AuthViewModel
-    @State private var busy = false
     @State private var showGoogleHelp = false
 
     var body: some View {
@@ -36,17 +35,26 @@ struct SignupView: View {
             }
 
             Button {
-                Task { busy = true; await authVM.signUp(); busy = false }
+                Task { await authVM.signUp() }
             } label: {
-                HStack { if busy { ProgressView().tint(.black) }; Text("Sign Up").bold() }
-                    .frame(maxWidth: .infinity).padding()
-                    .background(Color.accentGreen).foregroundColor(.black)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                HStack { 
+                    if authVM.isLoading { 
+                        ProgressView().tint(.black) 
+                    }
+                    Text("Sign Up").bold() 
+                }
+                .frame(maxWidth: .infinity).padding()
+                .background(Color.accentGreen).foregroundColor(.black)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .disabled(busy)
+            .disabled(authVM.isLoading)
 
-            // Google Sign-Up (visible even if SDK is missing; shows help alert)
+            // Google Sign-Up
             Button {
+                if !authVM.isGoogleSignInAvailable() {
+                    showGoogleHelp = true
+                    return
+                }
                 if let vc = UIApplication.shared.connectedScenes
                     .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
                     .first {
@@ -57,16 +65,26 @@ struct SignupView: View {
             } label: {
                 HStack(spacing: 10) {
                     Image(systemName: "g.circle.fill")
-                    Text("Sign up with Google").bold()
+                    if authVM.isLoading {
+                        ProgressView()
+                        Text("Signing up...").bold()
+                    } else {
+                        Text("Sign up with Google").bold()
+                    }
                 }
                 .frame(maxWidth: .infinity).frame(height: 48)
                 .background(Color.secondaryBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .alert("Add Google Sign-In SDK", isPresented: $showGoogleHelp) {
+            .disabled(authVM.isLoading)
+            .alert("Google Sign-In Setup", isPresented: $showGoogleHelp) {
                 Button("OK", role: .cancel) { }
             } message: {
-                Text("To enable this, add GoogleSignIn & GoogleSignInSwift via Swift Package Manager and set the REVERSED_CLIENT_ID URL type.")
+                if authVM.isGoogleSignInAvailable() {
+                    Text("Google Sign-In is ready. If you encounter issues, please ensure GoogleService-Info.plist is properly configured.")
+                } else {
+                    Text("To enable this, add GoogleSignIn SDK via Swift Package Manager.")
+                }
             }
 
             Spacer()

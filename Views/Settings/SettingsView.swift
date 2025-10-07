@@ -21,6 +21,8 @@ struct SettingsView: View {
     @State private var showingImporter = false
     @State private var showMailComposer = false
     @State private var showFeedbackFallback = false
+    @State private var fontSize: Double = 14.0
+    @AppStorage("HBFontSize") private var savedFontSize: Double = 14.0
 
     var body: some View {
         List {
@@ -128,28 +130,111 @@ struct SettingsView: View {
             }
 
             Section("Premium") {
-                Button("Upgrade to HummingBird Pro") {
-                    Haptics.light()
-                    isShowingPaywall = true
+                if ProStatusManager.shared.isPro {
+                    HStack {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.title2)
+                            .foregroundColor(.accentGreen)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("HummingBird Pro")
+                                .font(HBFont.body(15, weight: .semibold))
+                            Text("All premium features unlocked")
+                                .font(HBFont.body(12))
+                                .foregroundColor(.secondaryText)
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                } else {
+                    Button("Upgrade to HummingBird Pro") {
+                        Haptics.light()
+                        isShowingPaywall = true
+                    }
+                    Text("• Ad-free experience\n• Unlimited skips\n• High quality audio\n• Lyrics support")
+                        .font(.caption)
+                        .foregroundColor(.secondaryText)
                 }
-                Text("• Ad-free experience\n• Unlimited skips\n• High quality audio\n• Lyrics support")
-                    .font(.caption)
-                    .foregroundColor(.secondaryText)
             }
 
             Section("Appearance") {
-                ForEach(accentChoices, id: \.self) { hex in
-                    HStack {
-                        Circle().fill(Color(hex: hex)).frame(width: 22, height: 22)
-                        Text(hex)
-                        Spacer()
-                        if ThemeManager.shared.accentColorSwiftUI == Color(hex: hex) {
-                            Image(systemName: "checkmark")
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Accent Color")
+                        .font(HBFont.body(13, weight: .medium))
+                        .foregroundColor(.secondaryText)
+                    
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), spacing: 12) {
+                        ForEach(accentChoices, id: \.self) { hex in
+                            Button {
+                                ThemeManager.shared.setAccent(hex: hex)
+                                Haptics.light()
+                            } label: {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color(hex: hex))
+                                        .frame(width: 44, height: 44)
+                                    
+                                    if ThemeManager.shared.accentColorSwiftUI == Color(hex: hex) {
+                                        Circle()
+                                            .stroke(Color.white, lineWidth: 3)
+                                            .frame(width: 50, height: 50)
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 16, weight: .bold))
+                                            .foregroundColor(.white)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture { ThemeManager.shared.setAccent(hex: hex) }
+                    .padding(.bottom, 8)
+                    
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Font Size")
+                                .font(HBFont.body(13, weight: .medium))
+                                .foregroundColor(.secondaryText)
+                            Spacer()
+                            Text("\(Int(fontSize))pt")
+                                .font(HBFont.body(13, weight: .semibold))
+                                .foregroundColor(.accentGreen)
+                        }
+                        
+                        HStack(spacing: 8) {
+                            Image(systemName: "textformat.size.smaller")
+                                .foregroundColor(.secondaryText)
+                            Slider(value: $fontSize, in: 12...18, step: 1)
+                                .tint(.accentGreen)
+                            Image(systemName: "textformat.size.larger")
+                                .foregroundColor(.secondaryText)
+                        }
+                        
+                        // Live preview
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Preview")
+                                .font(.system(size: 11))
+                                .foregroundColor(.tertiaryText)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Song Title Preview")
+                                    .font(.system(size: fontSize, weight: .medium))
+                                    .foregroundColor(.primaryText)
+                                Text("Artist Name")
+                                    .font(.system(size: fontSize - 2))
+                                    .foregroundColor(.secondaryText)
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.primaryBackground)
+                            )
+                        }
+                        .padding(.top, 4)
+                    }
                 }
+                .padding(.vertical, 8)
             }
 
             Section("Playback") {
@@ -182,6 +267,10 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .task {
             await notificationManager.checkAuthorizationStatus()
+            fontSize = savedFontSize
+        }
+        .onChange(of: fontSize) { _, newValue in
+            savedFontSize = newValue
         }
         .sheet(isPresented: $showSleepTimerSheet) {
             SleepTimerSheet()

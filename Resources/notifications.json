@@ -1,0 +1,42 @@
+[
+  {
+    "id": "notif-001",
+    "title": "Welcome to HummingBird Pro! 🎉",
+    "message": "Enjoy unlimited offline playback and high-quality audio",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "type": "feature",
+    "isRead": false
+  },
+  {
+    "id": "notif-002",
+    "title": "New Feature: Sleep Timer",
+    "message": "Set a sleep timer from Settings to automatically pause playback",
+    "timestamp": "2024-01-14T09:15:00Z",
+    "type": "feature",
+    "isRead": false
+  },
+  {
+    "id": "notif-003",
+    "title": "Library Updated",
+    "message": "15 new songs added to your library",
+    "timestamp": "2024-01-13T14:20:00Z",
+    "type": "library",
+    "isRead": true
+  },
+  {
+    "id": "notif-004",
+    "title": "Equalizer Presets Available",
+    "message": "Customize your audio experience with our new equalizer presets",
+    "timestamp": "2024-01-12T16:45:00Z",
+    "type": "feature",
+    "isRead": true
+  },
+  {
+    "id": "notif-005",
+    "title": "Podcast Episode Downloaded",
+    "message": "New episode of HummingBird Daily is ready to play",
+    "timestamp": "2024-01-11T08:00:00Z",
+    "type": "podcast",
+    "isRead": true
+  }
+]
