@@ -1,0 +1,71 @@
+{
+  "top": [
+    {
+      "id": "hb.daily",
+      "title": "HummingBird Daily",
+      "author": "HummingBird Studios",
+      "artworkURL": "https://example.com/art/hb-daily.jpg",
+      "feedURL": "https://example.com/feeds/hb-daily.xml",
+      "description": "A quick morning briefing with music news, artist spotlights, and release radar.",
+      "categories": ["Music", "News"]
+    },
+    {
+      "id": "soundscapes.escape",
+      "title": "Soundscapes Escape",
+      "author": "Atelier Audio",
+      "artworkURL": "https://example.com/art/soundscapes.jpg",
+      "feedURL": "https://example.com/feeds/soundscapes.xml",
+      "description": "Immersive ambient journeys crafted for focus, deep work, and relaxation.",
+      "categories": ["Music", "Ambient"]
+    },
+    {
+      "id": "mixroom.live",
+      "title": "Mixroom Live",
+      "author": "HB Mix Dept.",
+      "artworkURL": "https://example.com/art/mixroom.jpg",
+      "feedURL": "https://example.com/feeds/mixroom.xml",
+      "description": "Weekly DJ sets recorded live from the HummingBird studio floor.",
+      "categories": ["Music", "Electronic"]
+    }
+  ],
+  "trending": [
+    {
+      "id": "artist.talks",
+      "title": "Artist Talks",
+      "author": "HB Conversations",
+      "artworkURL": "https://example.com/art/artist-talks.jpg",
+      "feedURL": "https://example.com/feeds/artist-talks.xml",
+      "description": "Intimate interviews with the artists in your rotation.",
+      "categories": ["Music", "Interviews"]
+    },
+    {
+      "id": "tour.radar",
+      "title": "Tour Radar",
+      "author": "LiveWire Media",
+      "artworkURL": "https://example.com/art/tour-radar.jpg",
+      "feedURL": "https://example.com/feeds/tour-radar.xml",
+      "description": "Weekly run-down of tours, festivals, and pop-up shows near you.",
+      "categories": ["Music", "Events"]
+    }
+  ],
+  "suggested": [
+    {
+      "id": "vinyl.vault",
+      "title": "Vinyl Vault",
+      "author": "Spindle Collective",
+      "artworkURL": "https://example.com/art/vinyl-vault.jpg",
+      "feedURL": "https://example.com/feeds/vinyl-vault.xml",
+      "description": "Dig through rare pressings and collector stories from crate diggers worldwide.",
+      "categories": ["Music", "History"]
+    },
+    {
+      "id": "late.night.listens",
+      "title": "Late Night Listens",
+      "author": "HB After Hours",
+      "artworkURL": "https://example.com/art/late-night.jpg",
+      "feedURL": "https://example.com/feeds/late-night.xml",
+      "description": "Soulful mixes for midnight listening sessions.",
+      "categories": ["Music", "Soul"]
+    }
+  ]
+}

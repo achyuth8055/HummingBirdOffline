@@ -1,0 +1,22 @@
+import Foundation
+import MediaPlayer
+
+// Coordinates exclusive playback between music (PlayerViewModel)
+// and podcasts (PodcastPlayerViewModel). Only one plays at a time.
+enum PlaybackCoordinator {
+    static func activateMusic() {
+        // Pause podcast playback when music starts or resumes
+        let podcast = PodcastPlayerViewModel.shared
+        podcast.pause()
+        // Ensure Now Playing shows music item only; the respective view model
+        // will set MPNowPlayingInfoCenter on its next update.
+    }
+
+    static func activatePodcast() {
+        // Pause music when a podcast starts or resumes
+        let music = PlayerViewModel.shared
+        music.pause()
+        // Podcast view model manages Now Playing info.
+    }
+}
+
