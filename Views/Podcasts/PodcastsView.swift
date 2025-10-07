@@ -6,9 +6,23 @@ struct PodcastsView: View {
     @StateObject private var viewModel = PodcastBrowseViewModel()
     @State private var isFetchingFeed = false
     @State private var activeDetail: PodcastDetailPayload?
+    @Query private var allStoredPodcasts: [Podcast]
+    @Query private var allEpisodes: [Episode]
 
     private var hasQuery: Bool {
         !viewModel.searchTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    
+    private var continueListening: [Episode] {
+        allEpisodes
+            .filter { $0.playbackProgress > 0 && $0.playbackProgress < 0.95 }
+            .sorted { ($0.lastPlayedDate ?? Date.distantPast) > ($1.lastPlayedDate ?? Date.distantPast) }
+            .prefix(5)
+            .compactMap { $0 }
+    }
+    
+    private var localPodcastLibrary: [Podcast] {
+        allStoredPodcasts.filter { !$0.title.isEmpty }
     }
 
     var body: some View {
@@ -22,28 +36,72 @@ struct PodcastsView: View {
                                 .progressViewStyle(.circular)
                                 .frame(maxWidth: .infinity)
                         } else if viewModel.results.isEmpty {
-                            Text("No podcasts found")
-                                .font(HBFont.body(13))
-                                .foregroundColor(.secondaryText)
+                            emptySearchState
                         } else {
                             podcastList(viewModel.results)
                         }
                     } else {
+                        // Continue Listening Section
+                        if !continueListening.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                SectionHeader(title: "Continue Listening")
+                                continueListeningSection
+                            }
+                        }
+                        
+                        // Local Library Section
+                        if !localPodcastLibrary.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                SectionHeader(title: "Your Podcast Library")
+                                podcastList(Array(localPodcastLibrary.prefix(5)))
+                            }
+                        }
+                        
+                        // Popular Podcasts
                         if !viewModel.top.isEmpty {
-                            SectionHeader(title: "Top Podcasts")
-                            podcastList(viewModel.top)
+                            VStack(alignment: .leading, spacing: 12) {
+                                SectionHeader(title: "Popular Podcasts")
+                                podcastList(viewModel.top)
+                            }
                         }
-                        if !viewModel.followed.isEmpty {
-                            SectionHeader(title: "Following")
-                            podcastList(viewModel.followed)
-                        }
-                        if !viewModel.recommended.isEmpty {
-                            SectionHeader(title: "You Might Like")
-                            podcastList(viewModel.recommended)
-                        }
+                        
+                        // Top Trending
                         if !viewModel.trending.isEmpty {
-                            SectionHeader(title: "Trending")
-                            podcastList(viewModel.trending)
+                            VStack(alignment: .leading, spacing: 12) {
+                                SectionHeader(title: "Top Trending")
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    LazyHStack(spacing: 16) {
+                                        ForEach(viewModel.trending.prefix(10)) { podcast in
+                                            TrendingPodcastCard(podcast: podcast) {
+                                                fetchFeed(for: podcast)
+                                            }
+                                        }
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                            }
+                        }
+                        
+                        // You Might Be Interested In
+                        if !viewModel.recommended.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                SectionHeader(title: "You Might Be Interested In")
+                                podcastList(Array(viewModel.recommended.prefix(5)))
+                            }
+                        }
+                        
+                        // Following
+                        if !viewModel.followed.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                SectionHeader(title: "Following")
+                                podcastList(viewModel.followed)
+                            }
+                        }
+                        
+                        // Empty state
+                        if viewModel.top.isEmpty && viewModel.trending.isEmpty && 
+                           viewModel.followed.isEmpty && localPodcastLibrary.isEmpty {
+                            emptyPodcastsState
                         }
                     }
                 }
@@ -87,6 +145,55 @@ struct PodcastsView: View {
                 episodes: payload.episodes,
                 suggestions: payload.suggestions
             )
+        }
+    }
+    
+    private var emptySearchState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 36, weight: .light))
+                .foregroundColor(.secondaryText.opacity(0.6))
+            Text("No podcasts found")
+                .font(HBFont.heading(18))
+                .foregroundColor(.primaryText)
+            Text("Try different keywords")
+                .font(HBFont.body(13))
+                .foregroundColor(.secondaryText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+    }
+    
+    private var emptyPodcastsState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "waveform")
+                .font(.system(size: 48, weight: .light))
+                .foregroundColor(.secondaryText.opacity(0.6))
+            Text("No Podcasts Available")
+                .font(HBFont.heading(20))
+                .foregroundColor(.primaryText)
+            Text("Search for podcasts to get started")
+                .font(HBFont.body(13))
+                .foregroundColor(.secondaryText)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
+    }
+    
+    private var continueListeningSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 14) {
+                ForEach(continueListening) { episode in
+                    ContinueListeningCard(episode: episode) {
+                        // Play episode
+                        if let podcast = episode.podcast {
+                            PodcastPlayerViewModel.shared.playEpisode(episode, from: podcast)
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 4)
         }
     }
 
@@ -274,5 +381,110 @@ private struct PodcastDetailPayload: Identifiable, Hashable {
 
     static func == (lhs: PodcastDetailPayload, rhs: PodcastDetailPayload) -> Bool {
         lhs.id == rhs.id
+    }
+}
+
+// MARK: - Continue Listening Card
+private struct ContinueListeningCard: View {
+    let episode: Episode
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                if let artworkURL = episode.artworkURL {
+                    AsyncImage(url: URL(string: artworkURL)) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        default:
+                            Color.secondaryBackground
+                                .overlay(Image(systemName: "waveform").foregroundColor(.secondaryText))
+                        }
+                    }
+                    .frame(width: 160, height: 160)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                } else {
+                    Color.secondaryBackground
+                        .frame(width: 160, height: 160)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(Image(systemName: "waveform").foregroundColor(.secondaryText))
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(episode.title)
+                        .font(HBFont.body(13, weight: .medium))
+                        .foregroundColor(.primaryText)
+                        .lineLimit(2)
+                    
+                    if let podcast = episode.podcast {
+                        Text(podcast.title)
+                            .font(HBFont.body(11))
+                            .foregroundColor(.secondaryText)
+                            .lineLimit(1)
+                    }
+                    
+                    // Progress bar
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.secondaryBackground)
+                                .frame(height: 4)
+                            
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.accentGreen)
+                                .frame(width: geometry.size.width * episode.playbackProgress, height: 4)
+                        }
+                    }
+                    .frame(height: 4)
+                }
+            }
+            .frame(width: 160)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Trending Podcast Card
+private struct TrendingPodcastCard: View {
+    let podcast: Podcast
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                AsyncImage(url: podcast.artworkURLValue) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    default:
+                        Color.podcastSecondary
+                            .overlay(Image(systemName: "waveform").foregroundColor(.white.opacity(0.6)))
+                    }
+                }
+                .frame(width: 140, height: 140)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.3)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                )
+                
+                Text(podcast.title)
+                    .font(HBFont.body(13, weight: .semibold))
+                    .foregroundColor(.primaryText)
+                    .lineLimit(2)
+                
+                Text(podcast.author)
+                    .font(HBFont.body(11))
+                    .foregroundColor(.secondaryText)
+                    .lineLimit(1)
+            }
+            .frame(width: 140)
+        }
+        .buttonStyle(.plain)
     }
 }
