@@ -9,6 +9,8 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var phase
     @ObservedObject private var toastCenter = ToastCenter.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage("lastSeenVersion") private var lastSeenVersion: String = ""
+    @State private var showWhatsNew = false
 
     var body: some View {
         ZStack {
@@ -70,10 +72,34 @@ struct ContentView: View {
                 hasCompletedOnboarding = true
             }
         }
+        .sheet(isPresented: $showWhatsNew) {
+            WhatsNewView()
+        }
         .onAppear {
             if UserDefaults.standard.bool(forKey: "HBHasSeenOnboarding") {
                 hasCompletedOnboarding = true
             }
+            
+            // Check if app version has changed and show What's New
+            checkForNewVersion()
+        }
+    }
+    
+    private func checkForNewVersion() {
+        // Only check for version if user has completed onboarding and is signed in
+        guard hasCompletedOnboarding, authVM.userSession != nil else { return }
+        
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        
+        // Show What's New if it's a different version and not empty
+        if !lastSeenVersion.isEmpty && lastSeenVersion != currentVersion {
+            // Wait a bit for the UI to settle before showing the sheet
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                showWhatsNew = true
+            }
+        } else if lastSeenVersion.isEmpty {
+            // First time - just save the version without showing What's New
+            lastSeenVersion = currentVersion
         }
     }
 

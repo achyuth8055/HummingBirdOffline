@@ -12,6 +12,7 @@ final class PodcastPlayerViewModel: ObservableObject {
     @Published private(set) var queue: [Episode] = []
     @Published private(set) var isPlaying: Bool = false
     @Published private(set) var progress: Double = 0
+    @Published var showFullPlayer: Bool = false
     @Published var playbackRate: Float = 1.0 {
         didSet { player.rate = isPlaying ? playbackRate : 0 }
     }
@@ -26,7 +27,10 @@ final class PodcastPlayerViewModel: ObservableObject {
         observeInterruptions()
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
-            self?.updateProgress()
+            guard let self else { return }
+            Task { @MainActor in
+                self.updateProgress()
+            }
         }
     }
 
@@ -125,7 +129,11 @@ final class PodcastPlayerViewModel: ObservableObject {
 
     private func configureAudioSession() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.allowAirPlay, .allowBluetooth])
+            try AVAudioSession.sharedInstance().setCategory(
+                .playback,
+                mode: .spokenAudio,
+                options: [.allowAirPlay, .allowBluetoothA2DP, .allowBluetoothHFP]
+            )
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             print("Podcast audio session error", error)
@@ -188,6 +196,15 @@ final class PodcastPlayerViewModel: ObservableObject {
         }
         lastPersistedProgressUpdate = now
     }
+
+    #if DEBUG
+    func preloadForPreview(_ episode: Episode, isPlaying: Bool = false, progress: Double = 0) {
+        currentEpisode = episode
+        queue = []
+        self.isPlaying = isPlaying
+        self.progress = progress
+    }
+    #endif
 }
 
 extension Notification.Name {

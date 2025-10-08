@@ -32,22 +32,22 @@ struct LibraryImportService {
         url.path.replacingOccurrences(of: libraryFolderURL.path + "/", with: "")
     }
 
-    static func importFiles(urls: [URL], context: ModelContext) async -> Int {
+    static func importFiles(urls: [URL], context: ModelContext, assumedSource: SongSourceType? = nil) async -> Int {
         guard !urls.isEmpty else { return 0 }
         var inserted = 0
         for url in urls {
-            if await importFile(at: url, context: context) { inserted += 1 }
+            if await importFile(at: url, context: context, assumedSource: assumedSource) { inserted += 1 }
         }
         return inserted
     }
 
     static func scanLibraryFolder(context: ModelContext, progress: @escaping (Double) -> Void = { _ in }) async {
-        try? FileManager.default.createDirectory(at: libraryFolderURL, withIntermediateDirectories: true)
+        let baseFolder = libraryFolderURL
+        try? FileManager.default.createDirectory(at: baseFolder, withIntermediateDirectories: true)
 
         let urls = await Task.detached(priority: .utility) { () -> [URL] in
-            let fm = FileManager.default
-            let base = libraryFolderURL
-            guard let items = try? fm.contentsOfDirectory(at: base, includingPropertiesForKeys: nil) else { return [] }
+            let fm = FileManager()
+            guard let items = try? fm.contentsOfDirectory(at: baseFolder, includingPropertiesForKeys: nil) else { return [] }
             let audioExts = Set(["mp3", "m4a", "aac", "wav", "aiff", "flac"])
             return items.filter { audioExts.contains($0.pathExtension.lowercased()) }
         }.value
@@ -68,16 +68,17 @@ struct LibraryImportService {
         }
     }
 
-    private static func importFile(at url: URL, context: ModelContext) async -> Bool {
+    private static func importFile(at url: URL, context: ModelContext, assumedSource: SongSourceType? = nil) async -> Bool {
+        let baseFolder = libraryFolderURL
         do {
-            let (localURL, metadata) = try await Task.detached(priority: .utility) { () -> (URL, Metadata) in
-                let local = try copyToLibrary(url: url)
+            let (localURL, metadata) = try await Task.detached(priority: .utility) { () async throws -> (URL, Metadata) in
+                let local = try await MainActor.run { try copyToLibrary(url: url, libraryFolder: baseFolder) }
                 let meta = try await readMetadata(url: local)
                 return (local, meta)
             }.value
 
             return try await MainActor.run { () -> Bool in
-                return try persistSong(metadata: metadata, localURL: localURL, context: context)
+                return try persistSong(metadata: metadata, localURL: localURL, context: context, assumedSource: assumedSource)
             }
         } catch {
             print("Import error: \(error)")
@@ -86,7 +87,7 @@ struct LibraryImportService {
     }
 
     @MainActor
-    private static func persistSong(metadata: Metadata, localURL: URL, context: ModelContext) throws -> Bool {
+    private static func persistSong(metadata: Metadata, localURL: URL, context: ModelContext, assumedSource: SongSourceType? = nil) throws -> Bool {
         let artist = fetchOrCreateArtist(name: metadata.artist, context: context)
         let album = fetchOrCreateAlbum(title: metadata.album, artist: metadata.artist, artwork: metadata.artwork, context: context)
 
@@ -101,6 +102,11 @@ struct LibraryImportService {
                 duration: metadata.duration,
                 filePath: rel,
                 artworkData: metadata.artwork,
+                sourceType: assumedSource ?? .local,
+                remoteURL: nil,
+                localPath: localURL,
+                isDownloaded: true,
+                playbackPositionSec: 0,
                 artist: artist,
                 album: album
             )
@@ -113,8 +119,9 @@ struct LibraryImportService {
         }
     }
 
-    static func copyToLibrary(url: URL) throws -> URL {
-        let dest = libraryFolderURL.appendingPathComponent(url.lastPathComponent)
+    @MainActor
+    static func copyToLibrary(url: URL, libraryFolder: URL) throws -> URL {
+        let dest = libraryFolder.appendingPathComponent(url.lastPathComponent)
         if !FileManager.default.fileExists(atPath: dest.path) {
             let started = url.startAccessingSecurityScopedResource()
             defer { if started { url.stopAccessingSecurityScopedResource() } }
@@ -131,25 +138,38 @@ struct LibraryImportService {
 
     static func readMetadata(url: URL) async throws -> Metadata {
         let asset = AVURLAsset(url: url)
-        _ = try await asset.load(.duration)
+        let durationTime = try await asset.load(.duration)
 
         var title = url.deletingPathExtension().lastPathComponent
         var artist = "Unknown Artist"
         var album = "Unknown Album"
         var artwork: Data? = nil
 
-        for item in asset.metadata {
+        let metadataItems = try await asset.load(.metadata)
+        for item in metadataItems {
             guard let key = item.commonKey?.rawValue else { continue }
             switch key {
-            case "title": if let v = item.stringValue { title = v }
-            case "artist": if let v = item.stringValue { artist = v }
-            case "albumName": if let v = item.stringValue { album = v }
-            case "artwork": if let v = item.dataValue { artwork = v }
+            case "title":
+                if let stringValue: String = try? await item.load(.stringValue) {
+                    title = stringValue
+                }
+            case "artist":
+                if let stringValue: String = try? await item.load(.stringValue) {
+                    artist = stringValue
+                }
+            case "albumName":
+                if let stringValue: String = try? await item.load(.stringValue) {
+                    album = stringValue
+                }
+            case "artwork":
+                if let dataValue: Data = try? await item.load(.dataValue) {
+                    artwork = dataValue
+                }
             default: break
             }
         }
 
-        let duration = CMTimeGetSeconds(asset.duration)
+        let duration = CMTimeGetSeconds(durationTime)
         return Metadata(title: title, artist: artist, album: album, artwork: artwork, duration: duration.isFinite ? duration : 0)
     }
 

@@ -76,6 +76,9 @@ final class Episode {
     var isCompleted: Bool  // Marked as completed if played past 95%
     var playbackProgress: Double
     var lastPlayedDate: Date?
+    // Source metadata (rss/local/cloud) for future extensibility
+    private var sourceTypeRaw: String? // stored raw value
+    var remoteStreamURL: String? // if different from audioURL (e.g., transcoded link)
     
     // Transcript and chapter data stored as JSON strings
     var transcriptJSON: String?  // JSON encoded Transcript
@@ -123,6 +126,7 @@ final class Episode {
         self.chaptersJSON = chaptersJSON
         self.playbackProgress = playbackProgress
         self.lastPlayedDate = lastPlayedDate
+        self.sourceTypeRaw = "rss" // default origin via feed
     }
     
     // Helper computed properties
@@ -153,9 +157,19 @@ final class Episode {
     }
 }
 
+// MARK: - Episode Source Type
+extension Episode {
+    enum SourceType: String, Codable { case rss, local, googleDrive, oneDrive, appleMusic, unknown }
+    var sourceType: SourceType {
+        get { SourceType(rawValue: sourceTypeRaw ?? "rss") ?? .unknown }
+        set { sourceTypeRaw = newValue.rawValue }
+    }
+    var remoteStreamURLValue: URL? { remoteStreamURL.flatMap { URL(string: $0) } }
+}
+
 // MARK: - Supporting Types for Transcript and Chapters
 
-struct Transcript: Codable, Hashable {
+struct Transcript: Codable, Hashable, Sendable {
     enum Format: String, Codable {
         case json, webvtt, srt, plain
     }
@@ -165,7 +179,7 @@ struct Transcript: Codable, Hashable {
     let language: String?
 }
 
-struct Chapter: Codable, Hashable {
+struct Chapter: Codable, Hashable, Sendable {
     let startTime: TimeInterval
     let title: String
     let imageURL: URL?

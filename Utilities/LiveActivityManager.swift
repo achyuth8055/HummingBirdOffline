@@ -42,13 +42,13 @@ private final class LiveActivityCoordinator {
             isPlaying: isPlaying,
             progress: progress
         )
-
         if let activity {
-            Task { await activity.update(using: state) }
+            Task { await activity.update(ActivityContent(state: state, staleDate: nil)) }
         } else {
-            let attributes = PlayerActivityAttributes()
             do {
-                activity = try Activity.request(attributes: attributes, contentState: state, pushType: nil)
+                let attributes = PlayerActivityAttributes()
+                let content = ActivityContent(state: state, staleDate: nil)
+                activity = try Activity.request(attributes: attributes, content: content, pushType: nil)
             } catch {
                 activity = nil
             }
@@ -57,7 +57,9 @@ private final class LiveActivityCoordinator {
 
     func end() {
         guard let activity else { return }
-        Task { await activity.end(dismissalPolicy: .immediate) }
+        Task {
+            await activity.end(ActivityContent(state: activity.content.state, staleDate: nil), dismissalPolicy: .immediate)
+        }
         self.activity = nil
     }
 }

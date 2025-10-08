@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct HBLaunchOverlay: View {
     @ObservedObject var model = LaunchProgressModel.shared

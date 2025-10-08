@@ -21,6 +21,9 @@ struct SettingsView: View {
     @State private var showingImporter = false
     @State private var showMailComposer = false
     @State private var showFeedbackFallback = false
+    @State private var showAboutSheet = false
+    @State private var showWebView = false
+    @State private var webViewURL: URL?
     @State private var fontSize: Double = 14.0
     @AppStorage("HBFontSize") private var savedFontSize: Double = 14.0
 
@@ -248,17 +251,49 @@ struct SettingsView: View {
                     .foregroundColor(.secondaryText)
             }
             
+            Section("Help & Feedback") {
+                Button {
+                    showAboutSheet = true
+                } label: {
+                    Label("About", systemImage: "info.circle")
+                }
+                
+                Button {
+                    openPrivacyPolicy()
+                } label: {
+                    Label("Privacy Policy", systemImage: "hand.raised")
+                }
+                
+                Button {
+                    openTermsOfUse()
+                } label: {
+                    Label("Terms of Use", systemImage: "doc.text")
+                }
+                
+                Button {
+                    reportBug()
+                } label: {
+                    Label("Report a Bug", systemImage: "ant")
+                }
+                
+                Button {
+                    requestFeature()
+                } label: {
+                    Label("Request a Feature", systemImage: "lightbulb")
+                }
+                
+                Button {
+                    writeReview()
+                } label: {
+                    Label("Write a Review", systemImage: "star")
+                }
+            }
+            
             Section("About") {
                 HStack {
                     Text("Version")
                     Spacer()
                     Text("1.0.0").foregroundColor(.secondaryText)
-                }
-                Button("Rate HummingBird") {
-                    // TODO: Open App Store rating
-                }
-                Button("Send Feedback") {
-                    sendFeedback()
                 }
             }
         }
@@ -346,6 +381,9 @@ struct SettingsView: View {
         } message: {
             Text("Mail is not configured on this device. Please email us at feedback@hummingbird.app")
         }
+        .sheet(isPresented: $showAboutSheet) {
+            AboutSheet()
+        }
     }
     
     // MARK: - Apple Music Import Methods
@@ -420,6 +458,48 @@ struct SettingsView: View {
                 let errorCount = result.errors.count
                 ToastCenter.shared.error("Failed to import \(errorCount) song(s)")
             }
+        }
+    }
+    
+    // MARK: - Help & Feedback Methods
+    
+    private func openPrivacyPolicy() {
+        Haptics.light()
+        if let url = URL(string: "https://hummingbird.app/privacy") {
+            UIApplication.shared.open(url)
+        }
+    }
+    
+    private func openTermsOfUse() {
+        Haptics.light()
+        if let url = URL(string: "https://hummingbird.app/terms") {
+            UIApplication.shared.open(url)
+        }
+    }
+    
+    private func reportBug() {
+        Haptics.light()
+        guard MFMailComposeViewController.canSendMail() else {
+            showFeedbackFallback = true
+            return
+        }
+        showMailComposer = true
+    }
+    
+    private func requestFeature() {
+        Haptics.light()
+        guard MFMailComposeViewController.canSendMail() else {
+            showFeedbackFallback = true
+            return
+        }
+        showMailComposer = true
+    }
+    
+    private func writeReview() {
+        Haptics.light()
+        // TODO: Replace with your actual App Store ID
+        if let url = URL(string: "https://apps.apple.com/app/id0000000000?action=write-review") {
+            UIApplication.shared.open(url)
         }
     }
 }
@@ -500,5 +580,113 @@ struct EqualizerSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+}
+
+// MARK: - About Sheet
+struct AboutSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 28) {
+                    // App Icon and Name
+                    VStack(spacing: 16) {
+                        Image(systemName: "waveform.circle.fill")
+                            .font(.system(size: 80))
+                            .foregroundStyle(Color.accentGreen.gradient)
+                        
+                        Text("HummingBird")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(.primaryText)
+                        
+                        Text("Version 1.0.0")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondaryText)
+                    }
+                    .padding(.top, 32)
+                    
+                    // Description
+                    VStack(spacing: 12) {
+                        Text("Your Personal Music Companion")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.primaryText)
+                        
+                        Text("HummingBird is a modern, offline-first music player designed for iOS. Enjoy your favorite music with a beautiful interface, powerful features, and complete privacy.")
+                            .font(.system(size: 15))
+                            .foregroundColor(.secondaryText)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
+                    
+                    // Features
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Features")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.primaryText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        FeatureRow(icon: "music.note", title: "Offline Playback", description: "Play your music anytime, anywhere")
+                        FeatureRow(icon: "waveform", title: "Equalizer", description: "Customize your sound")
+                        FeatureRow(icon: "moon.fill", title: "Sleep Timer", description: "Fall asleep to your music")
+                        FeatureRow(icon: "mic.fill", title: "Podcast Support", description: "Listen to your favorite shows")
+                        FeatureRow(icon: "heart.fill", title: "Favorites & Playlists", description: "Organize your music your way")
+                    }
+                    .padding(.horizontal, 24)
+                    
+                    // Developer Info
+                    VStack(spacing: 8) {
+                        Text("Developed with ❤️")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondaryText)
+                        
+                        Text("© 2025 HummingBird")
+                            .font(.system(size: 13))
+                            .foregroundColor(.tertiaryText)
+                    }
+                    .padding(.bottom, 32)
+                }
+            }
+            .background(Color.primaryBackground.ignoresSafeArea())
+            .navigationTitle("About")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(.accentGreen)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Feature Row
+private struct FeatureRow: View {
+    let icon: String
+    let title: String
+    let description: String
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.system(size: 24))
+                .foregroundColor(.accentGreen)
+                .frame(width: 36, height: 36)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.primaryText)
+                
+                Text(description)
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondaryText)
+            }
+            
+            Spacer()
+        }
     }
 }

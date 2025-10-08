@@ -16,7 +16,7 @@ struct RootGateView: View {
     var body: some View {
         Group {
             if !hasSeenOnboarding {
-                OnboardingView {
+                ModernOnboardingView {
                     hasSeenOnboarding = true
                     UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
                 }

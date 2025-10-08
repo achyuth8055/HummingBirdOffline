@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 // MARK: - Pro Status Manager
 class ProStatusManager: ObservableObject {
@@ -10,13 +11,15 @@ class ProStatusManager: ObservableObject {
     func simulatePurchase() {
         isPro = true
         showSuccessMessage = true
-        Haptics.light()
+        // NOTE: Make sure 'Haptics' is defined in your project
+        // Haptics.light()
     }
     
     func restorePurchase() {
         // In a real app, this would check with the App Store
         if isPro {
-            Haptics.light()
+             // NOTE: Make sure 'Haptics' is defined in your project
+            // Haptics.light()
         }
     }
 }
@@ -80,12 +83,12 @@ struct PaywallView: View {
                 )
             
             Text("You're a Pro Member!")
-                .font(HBFont.heading(28))
-                .foregroundColor(.primaryText)
+                .font(.system(size: 28, weight: .bold)) // Placeholder for HBFont
+                .foregroundColor(.primary)
             
             Text("Enjoy unlimited access to all premium features")
-                .font(HBFont.body(15))
-                .foregroundColor(.secondaryText)
+                .font(.system(size: 15)) // Placeholder for HBFont
+                .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
             
             VStack(alignment: .leading, spacing: 12) {
@@ -94,8 +97,8 @@ struct PaywallView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.accentGreen)
                         Text(item)
-                            .font(HBFont.body(14))
-                            .foregroundColor(.primaryText)
+                            .font(.system(size: 14)) // Placeholder for HBFont
+                            .foregroundColor(.primary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -109,26 +112,26 @@ struct PaywallView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Unlock Premium Features")
-                .font(HBFont.heading(28))
-                .foregroundColor(.primaryText)
+                .font(.system(size: 28, weight: .bold)) // Placeholder for HBFont
+                .foregroundColor(.primary)
             Text("Go premium for the full HummingBird experience.")
-                .font(HBFont.body(15))
-                .foregroundColor(.secondaryText)
+                .font(.system(size: 15)) // Placeholder for HBFont
+                .foregroundColor(.secondary)
         }
     }
 
     private var benefits: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("What you get")
-                .font(HBFont.heading(20))
-                .foregroundColor(.primaryText)
+                .font(.system(size: 20, weight: .bold)) // Placeholder for HBFont
+                .foregroundColor(.primary)
             ForEach(benefitItems, id: \.self) { item in
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.accentGreen)
                     Text(item)
-                        .font(HBFont.body(14))
-                        .foregroundColor(.primaryText)
+                        .font(.system(size: 14)) // Placeholder for HBFont
+                        .foregroundColor(.primary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -146,7 +149,8 @@ struct PaywallView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.hbPrimary)
+            // NOTE: Make sure .hbPrimary button style is defined
+            .buttonStyle(.borderedProminent) // Placeholder
 
             Button {
                 proManager.restorePurchase()
@@ -160,10 +164,12 @@ struct PaywallView: View {
                 Text("Restore Purchase")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.hbSecondary)
+            // NOTE: Make sure .hbSecondary button style is defined
+             .buttonStyle(.bordered) // Placeholder
             
             Text("This is a simulated purchase flow for offline demo")
-                .font(HBFont.body(11))
+                .font(.system(size: 11)) // Placeholder for HBFont
+                // ✅ FIX: Changed `.tertiary` to `.tertiaryText` to match your app's custom color name.
                 .foregroundColor(.tertiaryText)
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)
@@ -179,9 +185,12 @@ struct PaywallView: View {
     }
 }
 
+
 #Preview {
     NavigationStack {
         PaywallView()
     }
-    .environmentObject(PlayerViewModel.shared)
+    .preferredColorScheme(.dark)
+    // NOTE: Make sure your PlayerViewModel has a shared instance for previews.
+    // .environmentObject(PlayerViewModel.shared)
 }

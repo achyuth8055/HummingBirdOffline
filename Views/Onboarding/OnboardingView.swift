@@ -14,8 +14,16 @@ struct OnboardingView: View {
     private let pages: [Page] = [
         Page(id: 0, systemImage: "sparkles", title: "Welcome to HummingBirdOffline", subtitle: "Your music and podcast library, beautifully organized and always available offline."),
         Page(id: 1, systemImage: "tray.and.arrow.down.fill", title: "Import Your Music", subtitle: "Head to Settings → Import to bring in tracks from Files, AirDrop, or Apple Music downloads."),
-        Page(id: 2, systemImage: "airpodspro", title: "Enjoy Anywhere", subtitle: "Create playlists, queue podcasts, and listen without a connection. Tap Get Started when you're ready.")
+        Page(id: 2, systemImage: "airpodspro", title: "Enjoy Anywhere", subtitle: "Create playlists, queue podcasts, and listen without a connection. Tap Next to choose your podcast interests.")
     ]
+
+    // Persisted selected topics for personalization
+    @AppStorage("HBSelectedTopics") private var selectedTopicsRaw: String = ""
+    private var selectedTopics: [String] {
+        selectedTopicsRaw.split(separator: "|").map(String.init)
+    }
+
+    private let allTopics = ["Tech", "Music", "Motivation", "Sports", "Comedy", "Business", "News", "Health", "Science"]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -27,6 +35,14 @@ struct OnboardingView: View {
                         .padding(.bottom, 32)
                         .tag(page.id)
                 }
+
+                // Extra page for topic selection
+                ChooseTopicsView(allTopics: allTopics, selectedTopics: selectedTopics) { newSelection in
+                    selectedTopicsRaw = newSelection.joined(separator: "|")
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 28)
+                .tag(pages.count)
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
             .indexViewStyle(.page(backgroundDisplayMode: .always))
@@ -89,9 +105,9 @@ struct OnboardingView: View {
 
             Button(action: advance) {
                 HStack(spacing: 12) {
-                    Text(pageIndex < pages.count - 1 ? "Next" : "Get Started")
+                    Text(pageIndex < pages.count ? "Next" : "Get Started")
                         .font(HBFont.body(15, weight: .semibold))
-                    Image(systemName: pageIndex < pages.count - 1 ? "arrow.right" : "checkmark")
+                    Image(systemName: pageIndex < pages.count ? "arrow.right" : "checkmark")
                         .font(.body.weight(.semibold))
                 }
                 .foregroundColor(.primaryBackground)
@@ -106,14 +122,73 @@ struct OnboardingView: View {
     }
 
     private func advance() {
-        if pageIndex < pages.count - 1 {
+        // Advance through base pages, then topics page, then finish
+        if pageIndex < pages.count {
             withAnimation(.hbSnappyMedium) { pageIndex += 1 }
+            return
+        }
+
+        // We're on the topics page (index == pages.count)
+        Haptics.medium()
+        onFinish()
+    }
+}
+
+// MARK: - ChooseTopicsView
+private struct ChooseTopicsView: View {
+    let allTopics: [String]
+    @State var selectedTopics: [String]
+    var onChange: ([String]) -> Void
+
+    var body: some View {
+        VStack(spacing: 18) {
+            Text("Choose your interests")
+                .font(HBFont.heading(22))
+                .foregroundColor(.primaryText)
+
+            Text("Pick 3–5 topics to personalize podcast recommendations")
+                .font(HBFont.body(13))
+                .foregroundColor(.secondaryText)
+                .multilineTextAlignment(.center)
+
+            // Chips - use an adaptive grid to wrap chips reliably
+            let columns = [GridItem(.adaptive(minimum: 100), spacing: 10)]
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(allTopics, id: \.self) { topic in
+                    Button(action: {
+                        toggle(topic)
+                    }) {
+                        Text(topic)
+                            .font(HBFont.body(13, weight: .medium))
+                            .foregroundColor(selectedTopics.contains(topic) ? .black : .primaryText)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(selectedTopics.contains(topic) ? Color.accentGreen : Color.secondaryBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Spacer()
+        }
+        .onChange(of: selectedTopics) { new in onChange(new) }
+    }
+
+    private func toggle(_ topic: String) {
+        if selectedTopics.contains(topic) {
+            selectedTopics.removeAll { $0 == topic }
+        } else if selectedTopics.count < 5 {
+            selectedTopics.append(topic)
         } else {
-            Haptics.medium()
-            onFinish()
+            // if already 5, replace oldest
+            selectedTopics.removeFirst()
+            selectedTopics.append(topic)
         }
     }
 }
+
+// Flow wrapping is handled with LazyVGrid above.
 
 #Preview {
     OnboardingView(onFinish: {})

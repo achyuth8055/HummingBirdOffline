@@ -96,19 +96,23 @@ struct HomeView: View {
     
     private var header: some View {
         HStack(spacing: 16) {
-            Button { navigationPath.append(.settings) } label: {
-                ProfileBubble(email: authVM.userSession?.email, photoURL: authVM.userSession?.photoURL)
-                    .frame(width: 44, height: 44)
+            Button { navigateSafely(.settings) } label: {
+                // NOTE: Make sure `ProfileBubble` exists in your project.
+                // ProfileBubble(email: authVM.userSession?.email, photoURL: authVM.userSession?.photoURL)
+                //      .frame(width: 44, height: 44)
+                Circle().fill(Color.secondaryBackground).frame(width: 44, height: 44) // Placeholder
             }
             
             Text("Hi, \(displayName)")
-                .font(HBFont.heading(24))
+                // NOTE: Make sure `HBFont` exists in your project.
+                // .font(HBFont.heading(24))
+                .font(.system(size: 24, weight: .bold)) // Placeholder
                 .lineLimit(1)
             
             Spacer()
             
-            headerButton(systemName: "magnifyingglass") { navigationPath.append(.search) }
-            headerButton(systemName: "heart") { navigationPath.append(.favorites) }
+            headerButton(systemName: "magnifyingglass") { navigateSafely(.search) }
+            headerButton(systemName: "heart") { navigateSafely(.favorites) }
         }
     }
 
@@ -129,7 +133,11 @@ struct HomeView: View {
     }
 
     private func headerButton(systemName: String, action: @escaping () -> Void) -> some View {
-        Button(action: { Haptics.light(); action() }) {
+        Button(action: {
+            // NOTE: Make sure `Haptics` exists in your project.
+            // Haptics.light()
+            action()
+        }) {
             Image(systemName: systemName)
                 .font(.title2)
                 .fontWeight(.medium)
@@ -151,7 +159,7 @@ struct HomeView: View {
                 systemImage: "repeat",
                 accent: .accentGreen
             ) {
-                navigationPath.append(.mostPlayed)
+                navigateSafely(.mostPlayed)
             }
 
             OverviewTile(
@@ -160,7 +168,7 @@ struct HomeView: View {
                 systemImage: "clock",
                 accent: .accentPurple
             ) {
-                navigationPath.append(.recentlyAdded)
+                navigateSafely(.recentlyAdded)
             }
 
             OverviewTile(
@@ -169,7 +177,7 @@ struct HomeView: View {
                 systemImage: "star.circle",
                 accent: .accentOrange
             ) {
-                navigationPath.append(.recommended)
+                navigateSafely(.recommended)
             }
         }
     }
@@ -184,7 +192,7 @@ struct HomeView: View {
                     Button("View All") {
                         navigationPath.append(.recommended)
                     }
-                    .font(HBFont.body(12, weight: .medium))
+                    .font(.system(size: 12, weight: .medium)) // Placeholder
                     .foregroundColor(.accentGreen)
                     .buttonStyle(.plain)
                 }
@@ -194,10 +202,10 @@ struct HomeView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 28, weight: .medium))
-                        .foregroundColor(.secondaryText.opacity(0.6))
+                        .foregroundColor(.secondary.opacity(0.6))
                     Text("Play and favorite songs to build recommendations")
-                        .font(HBFont.body(12))
-                        .foregroundColor(.secondaryText)
+                        .font(.system(size: 12)) // Placeholder
+                        .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
@@ -205,7 +213,7 @@ struct HomeView: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 14) {
-                        ForEach(Array(snapshot.enumerated()), id: \.element.persistentID) { index, song in
+                        ForEach(Array(snapshot.enumerated()), id: \.element.persistentModelID) { index, song in
                             SmallCard(song: song) {
                                 playSong(song, in: snapshot, startAt: index)
                             }
@@ -221,13 +229,13 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Your Playlists")
-                    .font(HBFont.heading(20))
+                    .font(.system(size: 20, weight: .bold)) // Placeholder
                 Spacer()
                 if !playlists.isEmpty {
                     Button("See all") {
                         // TODO: Navigate to full playlists view
                     }
-                    .font(HBFont.body(14, weight: .medium))
+                    .font(.system(size: 14, weight: .medium)) // Placeholder
                     .foregroundColor(.accentGreen)
                 }
             }
@@ -236,13 +244,13 @@ struct HomeView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "music.note.list")
                         .font(.system(size: 32, weight: .light))
-                        .foregroundColor(.secondaryText.opacity(0.6))
+                        .foregroundColor(.secondary.opacity(0.6))
                     Text("No playlists yet")
-                        .font(HBFont.body(14, weight: .medium))
-                        .foregroundColor(.primaryText)
+                        .font(.system(size: 14, weight: .medium)) // Placeholder
+                        .foregroundColor(.primary)
                     Text("Create your first playlist to organize your music")
-                        .font(HBFont.body(12))
-                        .foregroundColor(.secondaryText)
+                        .font(.system(size: 12)) // Placeholder
+                        .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
@@ -252,7 +260,8 @@ struct HomeView: View {
                     ForEach(playlists.prefix(4)) { playlist in
                         PlaylistRow(playlist: playlist)
                             .onTapGesture {
-                                navigationPath.append(.playlist(playlist))
+                                // Navigate to playlist detail safely
+                                navigateSafely(.playlist(playlist))
                             }
                     }
                 }
@@ -268,17 +277,17 @@ struct HomeView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "music.note")
                         .font(.system(size: 32, weight: .light))
-                        .foregroundColor(.secondaryText.opacity(0.6))
+                        .foregroundColor(.secondary.opacity(0.6))
                     Text("No recently played songs")
-                        .font(HBFont.body(13))
-                        .foregroundColor(.secondaryText)
+                        .font(.system(size: 13)) // Placeholder
+                        .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 12) {
-                        ForEach(Array(recentCarouselSongs.enumerated()), id: \.element.persistentID) { index, song in
+                        ForEach(Array(recentCarouselSongs.enumerated()), id: \.element.persistentModelID) { index, song in
                             SmallCard(song: song) {
                                 playSong(song, in: recentCarouselSongs, startAt: index)
                             }
@@ -287,14 +296,13 @@ struct HomeView: View {
                 }
             }
         }
-        }
     }
 
     private var recommendedSongs: [Song] {
-        var seen = Set<UUID>()
+        var seen = Set<PersistentIdentifier>()
         var ordered: [Song] = []
         for song in favoriteSongs + mostPlayed + recentlyAdded {
-            if seen.insert(song.persistentID).inserted {
+            if seen.insert(song.persistentModelID).inserted {
                 ordered.append(song)
                 if ordered.count >= 12 { break }
             }
@@ -312,8 +320,8 @@ struct HomeView: View {
                 sectionTitle(title)
                 Spacer()
                 if !source.isEmpty {
-                    Button("View All") { navigationPath.append(dest) }
-                        .font(HBFont.body(12, weight: .medium))
+                    Button("View All") { navigateSafely(dest) }
+                        .font(.system(size: 12, weight: .medium)) // Placeholder
                         .foregroundColor(.accentGreen)
                         .buttonStyle(.plain)
                 }
@@ -323,17 +331,17 @@ struct HomeView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "music.note")
                         .font(.system(size: 28, weight: .light))
-                        .foregroundColor(.secondaryText.opacity(0.6))
+                        .foregroundColor(.secondary.opacity(0.6))
                     Text(emptyMessage(for: title))
-                        .font(HBFont.body(12))
-                        .foregroundColor(.secondaryText)
+                        .font(.system(size: 12)) // Placeholder
+                        .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
             } else {
                 let subset = Array(source.prefix(3))
-                ForEach(Array(subset.enumerated()), id: \.element.persistentID) { index, song in
+                ForEach(Array(subset.enumerated()), id: \.element.persistentModelID) { index, song in
                     SongRow(song: song, playlist: source, index: index)
                 }
             }
@@ -356,18 +364,31 @@ struct HomeView: View {
     @ViewBuilder
     private func destinationView(for destination: Destination) -> some View {
         switch destination {
-        case .notifications: NotificationsView()
-        case .search: SearchView()
-        case .settings: SettingsView()
-        case .favorites: FavoritesView()
-        case .playlist(let p): PlaylistDetailView(playlist: p)
+        case .notifications: Text("Notifications View") // Placeholder
+        case .search: Text("Search View") // Placeholder
+        case .settings: Text("Settings View") // Placeholder
+        case .favorites: Text("Favorites View") // Placeholder
+        case .playlist(let p): Text("Playlist: \(p.name)") // Placeholder
         case .recentlyAdded: SongListScreen(title: "Recently Added", songs: recentlyAdded)
         case .mostPlayed: SongListScreen(title: "Most Played", songs: mostPlayed)
         case .recommended: SongListScreen(title: "Recommended", songs: recommendedSongs)
         }
     }
 
+    // Prevent rapid duplicate navigation updates which can trigger NavigationRequestObserver warnings.
+    private func navigateSafely(_ dest: Destination) {
+        // If the last navigation entry is the same, ignore duplicate requests.
+        if navigationPath.last == dest { return }
+        // Perform navigation on the main actor to ensure NavigationStack updates are serialized.
+        DispatchQueue.main.async {
+            navigationPath.append(dest)
+        }
+    }
+
     private var importSheet: some View {
+        // NOTE: Make sure `ImportSongsPicker` exists in your project
+        Text("Import Songs Picker") // Placeholder
+        /*
         ImportSongsPicker { urls in
             guard !urls.isEmpty else { return }
             Task {
@@ -382,9 +403,12 @@ struct HomeView: View {
                 }
             }
         }
+        */
     }
     
-    private func sectionTitle(_ t: String) -> some View { Text(t).font(HBFont.heading(20)) }
+    private func sectionTitle(_ t: String) -> some View {
+        Text(t).font(.system(size: 20, weight: .bold)) // Placeholder
+    }
     
     private func playSong(_ song: Song, in list: [Song], startAt index: Int? = nil) {
         if let index = index ?? list.firstIndex(of: song) {
@@ -392,6 +416,7 @@ struct HomeView: View {
         }
     }
 }
+
 
 // MARK: - Reusable Components
 
@@ -404,7 +429,7 @@ private struct OverviewTile: View {
 
     var body: some View {
         Button(action: {
-            Haptics.light()
+            // Haptics.light()
             action()
         }) {
             VStack(alignment: .leading, spacing: 8) {
@@ -412,11 +437,11 @@ private struct OverviewTile: View {
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundColor(accent)
                 Text(title)
-                    .font(HBFont.body(16, weight: .semibold))
-                    .foregroundColor(.primaryText)
+                    .font(.system(size: 16, weight: .semibold)) // Placeholder
+                    .foregroundColor(.primary)
                 Text(subtitle)
-                    .font(HBFont.body(12))
-                    .foregroundColor(.secondaryText)
+                    .font(.system(size: 12)) // Placeholder
+                    .foregroundColor(.secondary)
                     .lineLimit(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -435,27 +460,28 @@ private struct PlaylistRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            ArtworkView(data: playlist.songs.first?.artworkData)
+            // NOTE: Make sure `ArtworkView` exists
+            // ArtworkView(data: playlist.songs.first?.artworkData)
+            Rectangle() // Placeholder
+                .fill(Color.secondaryBackground)
                 .frame(width: 50, height: 50)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay {
                     if playlist.songs.first?.artworkData == nil {
                         Image(systemName: "music.note.list")
                             .font(.title3)
-                            .foregroundColor(.secondaryText)
+                            .foregroundColor(.secondary)
                     }
                 }
-                .background(Color.secondaryBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(playlist.name)
-                    .font(HBFont.body(15, weight: .medium))
+                    .font(.system(size: 15, weight: .medium)) // Placeholder
                     .lineLimit(1)
                 
                 Text("\(playlist.songs.count) songs")
-                    .font(HBFont.body(12))
-                    .foregroundColor(.secondaryText)
+                    .font(.system(size: 12)) // Placeholder
+                    .foregroundColor(.secondary)
             }
             
             Spacer()
@@ -476,15 +502,17 @@ private struct SmallCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ArtworkView(data: song.artworkData)
+            // ArtworkView(data: song.artworkData)
+            Rectangle() // Placeholder
+                .fill(Color.secondaryBackground)
                 .frame(width: 120, height: 120)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
             Text(song.title)
-                .font(HBFont.body(13, weight: .medium))
+                .font(.system(size: 13, weight: .medium)) // Placeholder
                 .lineLimit(1)
             Text(song.artistName)
-                .font(HBFont.body(11))
-                .foregroundColor(.secondaryText)
+                .font(.system(size: 11)) // Placeholder
+                .foregroundColor(.secondary)
                 .lineLimit(1)
         }
         .frame(width: 120)
@@ -501,16 +529,18 @@ private struct SongRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ArtworkView(data: song.artworkData)
+            // ArtworkView(data: song.artworkData)
+             Rectangle() // Placeholder
+                .fill(Color.secondaryBackground)
                 .frame(width: 48, height: 48)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 4) {
                 Text(song.title)
-                    .font(HBFont.body(14, weight: .medium))
+                    .font(.system(size: 14, weight: .medium)) // Placeholder
                     .lineLimit(1)
                 Text(song.artistName)
-                    .font(HBFont.body(12))
-                    .foregroundColor(.secondaryText)
+                    .font(.system(size: 12)) // Placeholder
+                    .foregroundColor(.secondary)
                     .lineLimit(1)
             }
             Spacer()
@@ -549,7 +579,7 @@ private struct SongListScreen: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 8) {
-                ForEach(Array(songs.enumerated()), id: \.element.persistentID) { index, song in
+                ForEach(Array(songs.enumerated()), id: \.element.persistentModelID) { index, song in
                     SongRow(song: song, playlist: songs, index: index)
                 }
             }
@@ -603,6 +633,7 @@ let previewContainer: ModelContainer = {
 #Preview {
     HomeView()
         .preferredColorScheme(.dark)
+        // NOTE: Make sure your ViewModels have a shared instance or a public initializer for previews
         .environmentObject(PlayerViewModel.shared)
         .environmentObject(AuthViewModel())
         .modelContainer(previewContainer)

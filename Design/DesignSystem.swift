@@ -1,53 +1,16 @@
-//
-//  DesignSystem.swift
-//
-
 import SwiftUI
-
-// MARK: - Typography
-
-enum HBFont {
-    // Align with typography tokens: headings use bold display style, body uses SF Pro Text.
-    static func heading(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .bold, design: .default)
-    }
-
-    static func body(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .default)
-    }
-
-    static func display(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .heavy, design: .default)
-    }
-}
+import Combine
 
 // MARK: - Colors
 
 extension Color {
-    // Backgrounds (premium dark palette)
-    static let primaryBackground = Color(hex: "#121212")
-    static let secondaryBackground = Color(hex: "#1E1E1E")
-    static let tertiaryBackground = Color(hex: "#2A2A2A") // rail tint
+    static let tertiaryBackground = Color(hex: "#2A2A2A")
 
-    // Accents
-    static let accentGreen = Color(hex: "#1ED760")
-    static let accentBlue = Color(hex: "#1E90FF")
-    static let accentPurple = Color(hex: "#9D4EDD")
-    static let accentOrange = Color(hex: "#FF6B35")
-
-    // Text
-    static let primaryText = Color.white
-    static let secondaryText = Color(hex: "#B3B3B3")
     static let tertiaryText = Color(hex: "#737373")
 
-    // Status
     static let successGreen = Color(hex: "#4CAF50")
     static let errorRed = Color(hex: "#EF5350")
     static let warningYellow = Color(hex: "#FFC107")
-
-    // Podcast UI
-    static let podcastPrimary = Color(hex: "#8E44AD")
-    static let podcastSecondary = Color(hex: "#6C3483")
 }
 
 extension Color {

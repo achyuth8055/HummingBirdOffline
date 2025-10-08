@@ -46,21 +46,33 @@ final class PodcastBrowseViewModel: ObservableObject {
     func updateSearchTerm(_ term: String) {
         searchTask?.cancel()
         let trimmed = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = trimmed
         searchTerm = term
         guard !trimmed.isEmpty else {
             results = []
             isSearching = false
             errorMessage = nil
+            searchTask = nil
             return
         }
         isSearching = true
+        errorMessage = nil
         searchTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 200_000_000)
             guard let self, !Task.isCancelled else { return }
-            let podcasts = PodcastAPIService.search(term: trimmed)
+            let remote = await PodcastService.search(term: query)
+            if Task.isCancelled { return }
+            let fallback = PodcastAPIService.search(term: query)
+            let podcasts = remote.isEmpty ? fallback : remote
             await MainActor.run {
-                results = podcasts
-                isSearching = false
+                self.results = podcasts
+                self.isSearching = false
+                self.searchTask = nil
+                if podcasts.isEmpty {
+                    self.errorMessage = "No podcasts found for \"\(query)\"."
+                } else {
+                    self.errorMessage = nil
+                }
             }
         }
     }
