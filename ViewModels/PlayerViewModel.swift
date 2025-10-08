@@ -14,6 +14,7 @@ final class PlayerViewModel: ObservableObject {
     // State
     @Published var currentSong: Song?
     @Published var isPlaying: Bool = false
+    @Published var isLoading: Bool = false
     @Published var progress: Double = 0
     @Published var showFullPlayer: Bool = false
 
@@ -255,11 +256,25 @@ final class PlayerViewModel: ObservableObject {
         if autoPlay {
             PlaybackCoordinator.activateMusic()
         }
-        let url = fileURL(for: song)
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            print("Missing file for \(song.title) → skipping")
-            if !queue.isEmpty { nextTrack() } else { stop() }
-            return
+        
+        // Show loading state for streaming songs
+        if song.isStreamedFromCloud {
+            await MainActor.run { isLoading = true }
+        }
+        
+        // Determine the URL to play - either local file or streaming URL
+        let url: URL
+        if song.isStreamedFromCloud, let streamingURL = song.playbackURL {
+            url = streamingURL
+        } else {
+            url = fileURL(for: song)
+            // Check if local file exists
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                print("Missing file for \(song.title) → skipping")
+                await MainActor.run { isLoading = false }
+                if !queue.isEmpty { nextTrack() } else { stop() }
+                return
+            }
         }
 
         currentSong = song
@@ -277,6 +292,13 @@ final class PlayerViewModel: ObservableObject {
         let item = AVPlayerItem(url: url)
         player?.insert(item, after: nil)
         player?.volume = Float(volume)
+
+        // Observe player item status for loading state
+        if song.isStreamedFromCloud {
+            await observePlayerItemStatus(item)
+        } else {
+            await MainActor.run { isLoading = false }
+        }
 
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
@@ -297,6 +319,37 @@ final class PlayerViewModel: ObservableObject {
         updateNowPlaying(isPlaying: autoPlay)
         LiveActivityManager.shared.startOrUpdate(song: song, progress: 0, isPlaying: autoPlay)
         refreshBaselineIfNeeded()
+    }
+    
+    private func observePlayerItemStatus(_ item: AVPlayerItem) async {
+        await withCheckedContinuation { continuation in
+            let observer = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+                Task { @MainActor in
+                    switch item.status {
+                    case .readyToPlay:
+                        self?.isLoading = false
+                        continuation.resume()
+                    case .failed:
+                        self?.isLoading = false
+                        print("Failed to load streaming song: \(item.error?.localizedDescription ?? "Unknown error")")
+                        continuation.resume()
+                    case .unknown:
+                        break
+                    @unknown default:
+                        break
+                    }
+                }
+            }
+            
+            // Auto-remove observer after a timeout
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                observer.invalidate()
+                Task { @MainActor in
+                    self.isLoading = false
+                }
+                continuation.resume()
+            }
+        }
     }
 
     private func stop() {

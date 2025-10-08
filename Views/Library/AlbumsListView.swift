@@ -74,6 +74,8 @@ struct AlbumDetailView: View {
     let albumArtist: String
     let tracks: [Song]
 
+    @State private var showEditor = false
+
     var body: some View {
         List {
             ForEach(tracks) { s in
@@ -95,5 +97,18 @@ struct AlbumDetailView: View {
         .background(Color.primaryBackground)
         .navigationTitle(albumName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { showEditor = true } label: { Image(systemName: "pencil") }
+            }
+        }
+        .sheet(isPresented: $showEditor) {
+            // Provide a lightweight Album instance to editor (create or fetch existing Album entity if exists)
+            if let existing = tracks.first?.album {
+                NavigationStack { AlbumEditorView(album: existing) }
+            } else {
+                Text("Album object missing")
+            }
+        }
     }
 }

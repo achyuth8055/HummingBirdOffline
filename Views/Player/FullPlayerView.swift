@@ -260,12 +260,13 @@ struct FullPlayerView: View {
     private var actionsSection: some View {
         HStack(spacing: 40) {
             Button { 
-                Haptics.light()
                 toggleFavorite() 
             } label: {
                 Image(systemName: (player.currentSong?.favorite ?? false) ? "heart.fill" : "heart")
                     .font(.title2)
                     .foregroundColor(player.currentSong?.favorite ?? false ? .accentGreen : .primaryText)
+                    .scaleEffect((player.currentSong?.favorite ?? false) ? 1.1 : 1.0)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: player.currentSong?.favorite)
             }
             
             Spacer()
@@ -334,6 +335,7 @@ struct FullPlayerView: View {
     
     private func toggleFavorite() {
         guard let song = player.currentSong else { return }
+        Haptics.light()
         song.favorite.toggle()
         try? context.save()
         

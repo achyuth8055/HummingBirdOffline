@@ -61,10 +61,7 @@ struct PodcastsView: View {
             .toolbar { refreshToolbar }
             .navigationTitle("Browse")
             .navigationBarTitleDisplayMode(.large)
-            .task {
-                if isLoading { fetchPersonalizedPodcasts() }
-                if viewModel.trending.isEmpty { viewModel.loadTrending() }
-            }
+            .task { await initialLoadIfNeeded() }
             .refreshable { await manualRefresh() }
             .navigationDestination(item: $activeDetail) { payload in
                 PodcastDetailView(
@@ -353,37 +350,39 @@ struct PodcastsView: View {
     
     // MARK: - Helper Functions
     
-    private func fetchPersonalizedPodcasts() {
-        Task {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-            
-            await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.4)) {
-                    let allPodcasts = viewModel.top + viewModel.trending + viewModel.recommended
-                    
-                    if !selectedTopics.isEmpty {
-                        recommendedPodcasts = allPodcasts.filter { podcast in
-                            podcast.categories.contains { category in
-                                selectedTopics.contains(category.lowercased())
-                            }
-                        }
-                    }
-                    
-                    if recommendedPodcasts.isEmpty {
-                        recommendedPodcasts = allPodcasts
-                    }
-                    
-                    isLoading = false
-                }
+    private func initialLoadIfNeeded() async {
+        guard isLoading else { return }
+        if viewModel.trending.isEmpty { viewModel.loadTrending() }
+        await MainActor.run {
+            buildRecommendations()
+            withAnimation(.easeInOut(duration: 0.35)) { isLoading = false }
+        }
+    }
+
+    private func buildRecommendations() {
+        // Build list: followed podcasts first then most recently refreshed
+        let followed = localPodcastLibrary.filter { $0.isFollowing }
+            .sorted { ($0.dateFollowed ?? .distantPast) > ($1.dateFollowed ?? .distantPast) }
+        let recency = localPodcastLibrary.sorted { $0.lastRefreshed > $1.lastRefreshed }
+        var combined: [Podcast] = []
+        combined.append(contentsOf: followed)
+        for p in recency where !combined.contains(where: { $0.id == p.id }) { combined.append(p) }
+        if !selectedTopics.isEmpty {
+            let filtered = combined.filter { pod in
+                pod.categories.contains { selectedTopics.contains($0.lowercased()) }
             }
+            recommendedPodcasts = filtered.isEmpty ? combined : filtered
+        } else {
+            recommendedPodcasts = combined
         }
     }
     
     private func getCategoryList() -> [String] {
-        if !selectedTopics.isEmpty {
-            return selectedTopics
-        }
-        return ["music", "tech", "news", "culture", "education"]
+        if !selectedTopics.isEmpty { return selectedTopics }
+        let allCats = localPodcastLibrary.flatMap { $0.categories.map { $0.lowercased() } }
+        let freq = Dictionary(grouping: allCats) { $0 }.mapValues { $0.count }
+        let sorted = freq.sorted { $0.value > $1.value }.map { $0.key }
+        return Array(sorted.prefix(8))
     }
     
     private func getCategoryColor(for category: String) -> Color {
@@ -517,7 +516,7 @@ struct PodcastsView: View {
     private func manualRefresh() async {
         await MainActor.run { withAnimation { isLoading = true } }
         viewModel.loadTrending()
-        fetchPersonalizedPodcasts()
+        await initialLoadIfNeeded()
     }
 
     // Toolbar content builder replacement

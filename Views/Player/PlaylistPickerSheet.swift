@@ -115,8 +115,10 @@ struct PlaylistPickerSheet: View {
         if !playlist.songs.contains(where: { $0.persistentModelID == song.persistentModelID }) {
             playlist.songs.append(song)
             try? context.save()
+            Haptics.success()
             ToastCenter.shared.success("Added to \(playlist.name)")
         } else {
+            Haptics.light()
             ToastCenter.shared.info("Already in \(playlist.name)")
         }
         dismiss()
@@ -126,6 +128,7 @@ struct PlaylistPickerSheet: View {
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         
+        Haptics.success()
         let playlist = Playlist(name: trimmed)
         context.insert(playlist)
         

@@ -10,14 +10,14 @@ struct MainTabView: View {
     @State private var selectedTab: Tab = .home
     @State private var showFullMusicPlayer = false
     @State private var showFullPodcastPlayer = false
+    @State private var showImportSheet = false
     @Namespace private var musicPlayerNamespace
-    @Namespace private var podcastPlayerNamespace
     
     enum Tab: String, CaseIterable {
         case home = "Home"
         case library = "Library"
         case podcasts = "Podcasts"
-        case search = "Search"
+        case importTab = "Import"
         case settings = "Settings"
         
         var icon: String {
@@ -25,7 +25,7 @@ struct MainTabView: View {
             case .home: return "house.fill"
             case .library: return "music.note.list"
             case .podcasts: return "mic.fill"
-            case .search: return "magnifyingglass"
+            case .importTab: return "square.and.arrow.down.fill"
             case .settings: return "gearshape.fill"
             }
         }
@@ -33,7 +33,6 @@ struct MainTabView: View {
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Main Tab Content
             TabView(selection: $selectedTab) {
                 HomeView()
                     .tag(Tab.home)
@@ -52,13 +51,14 @@ struct MainTabView: View {
                     .tabItem {
                         Label(Tab.podcasts.rawValue, systemImage: Tab.podcasts.icon)
                     }
-                
-                SearchView()
-                    .tag(Tab.search)
+
+                // Import tab is a button that shows a sheet
+                Text("Import")
+                    .tag(Tab.importTab)
                     .tabItem {
-                        Label(Tab.search.rawValue, systemImage: Tab.search.icon)
+                        Label(Tab.importTab.rawValue, systemImage: Tab.importTab.icon)
                     }
-                
+
                 SettingsView()
                     .tag(Tab.settings)
                     .tabItem {
@@ -66,13 +66,24 @@ struct MainTabView: View {
                     }
             }
             .tint(.accentGreen)
+            .onChange(of: selectedTab) { _, newValue in
+                if newValue == .importTab {
+                    // Show the import sheet and revert to the previous tab
+                    showImportSheet = true
+                    selectedTab = Tab.home // Or whichever tab you want to be default
+                }
+            }
             
-            // Mini Players - Show podcast OR music player (whichever is active)
-            // Podcast player takes precedence when both are available
+            // Mini Players - Only show one at a time based on what's actively playing
             VStack(spacing: 0) {
                 Spacer()
                 
-                if podcastPlayer.currentEpisode != nil && !showFullPodcastPlayer {
+                // Show podcast mini player only if podcast is playing AND not in Settings/Import
+                if podcastPlayer.currentEpisode != nil && 
+                   !showFullPodcastPlayer && 
+                   selectedTab != .settings &&
+                   selectedTab != .importTab &&
+                   podcastPlayer.isPlaying {
                     PodcastMiniPlayerView {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                             showFullPodcastPlayer = true
@@ -81,7 +92,13 @@ struct MainTabView: View {
                     .padding(.horizontal, 8)
                     .padding(.bottom, 60)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
-                } else if player.currentSong != nil && !showFullMusicPlayer {
+                }
+                // Show music mini player only if music is playing AND podcast is not actively playing
+                else if player.currentSong != nil && 
+                        !showFullMusicPlayer && 
+                        !podcastPlayer.isPlaying &&
+                        selectedTab != .settings &&
+                        selectedTab != .importTab {
                     MiniPlayerView(namespace: musicPlayerNamespace) {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                             showFullMusicPlayer = true
@@ -94,7 +111,9 @@ struct MainTabView: View {
             }
             .ignoresSafeArea(.keyboard, edges: .bottom)
             .animation(.spring(response: 0.3, dampingFraction: 0.85), value: podcastPlayer.currentEpisode != nil)
+            .animation(.spring(response: 0.3, dampingFraction: 0.85), value: podcastPlayer.isPlaying)
             .animation(.spring(response: 0.3, dampingFraction: 0.85), value: player.currentSong != nil)
+            .animation(.spring(response: 0.3, dampingFraction: 0.85), value: selectedTab)
         }
         .fullScreenCover(isPresented: $showFullMusicPlayer) {
             FullPlayerView(namespace: musicPlayerNamespace)
@@ -102,17 +121,20 @@ struct MainTabView: View {
         .fullScreenCover(isPresented: $showFullPodcastPlayer) {
             PodcastPlayerView()
         }
-        .onChange(of: player.currentSong) { oldValue, newValue in
+        .sheet(isPresented: $showImportSheet) {
+            ImportView()
+        }
+        .onChange(of: player.currentSong) { _, newValue in
             if newValue == nil && showFullMusicPlayer {
                 showFullMusicPlayer = false
             }
         }
-        .onChange(of: podcastPlayer.currentEpisode) { oldValue, newValue in
+        .onChange(of: podcastPlayer.currentEpisode) { _, newValue in
             if newValue == nil && showFullPodcastPlayer {
                 showFullPodcastPlayer = false
             }
         }
-        .onChange(of: podcastPlayer.showFullPlayer) { oldValue, newValue in
+        .onChange(of: podcastPlayer.showFullPlayer) { _, newValue in
             if newValue {
                 showFullPodcastPlayer = true
                 podcastPlayer.showFullPlayer = false // Reset the flag

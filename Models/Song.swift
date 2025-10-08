@@ -99,6 +99,46 @@ extension Song {
         get { SongSourceType(rawValue: sourceTypeRaw) ?? .unknown }
         set { sourceTypeRaw = newValue.rawValue }
     }
-    var remoteURLValue: URL? { remoteURL.flatMap { URL(string: $0) } }
-    var localPathURL: URL? { localPath.flatMap { URL(fileURLWithPath: $0) } }
+    
+    var remoteURLValue: URL? { 
+        remoteURL.flatMap { URL(string: $0) } 
+    }
+    
+    var localPathURL: URL? { 
+        localPath.flatMap { URL(fileURLWithPath: $0) } 
+    }
+    
+    /// Returns true if this song is streamed from a cloud service
+    var isStreamedFromCloud: Bool {
+        return !isDownloaded && remoteURLValue != nil && (sourceType == .googleDrive || sourceType == .oneDrive)
+    }
+    
+    /// Returns the playback URL - either local file or remote streaming URL
+    var playbackURL: URL? {
+        if isDownloaded, let localURL = localPathURL {
+            return localURL
+        }
+        return remoteURLValue
+    }
+    
+    /// Returns a user-friendly source description
+    var sourceDescription: String {
+        switch sourceType {
+        case .local:
+            return "Local File"
+        case .googleDrive:
+            return "Google Drive"
+        case .oneDrive:
+            return "OneDrive"
+        case .appleMusic:
+            return "Apple Music"
+        case .unknown:
+            return "Unknown"
+        }
+    }
+    
+    /// Returns true if the song requires network connectivity to play
+    var requiresNetwork: Bool {
+        return isStreamedFromCloud
+    }
 }

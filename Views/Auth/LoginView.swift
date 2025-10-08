@@ -4,6 +4,7 @@ import UIKit
 struct LoginView: View {
     @EnvironmentObject private var authVM: AuthViewModel
     @State private var showGoogleHelp = false
+    @State private var isAppearing = false
 
     var body: some View {
         ScrollView {
@@ -11,9 +12,13 @@ struct LoginView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Welcome Back")
                         .font(HBFont.heading(32))
+                        .opacity(isAppearing ? 1 : 0)
+                        .offset(y: isAppearing ? 0 : 20)
                     Text("Sign in to continue")
                         .font(HBFont.body(15))
                         .foregroundColor(.secondaryText)
+                        .opacity(isAppearing ? 1 : 0)
+                        .offset(y: isAppearing ? 0 : 20)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 32)
@@ -31,6 +36,8 @@ struct LoginView: View {
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
                                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
                         )
+                        .opacity(isAppearing ? 1 : 0)
+                        .offset(y: isAppearing ? 0 : 20)
                     
                     SecureField("Password", text: $authVM.password)
                         .textContentType(.password)
@@ -41,6 +48,8 @@ struct LoginView: View {
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
                                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
                         )
+                        .opacity(isAppearing ? 1 : 0)
+                        .offset(y: isAppearing ? 0 : 20)
                 }
 
                 if let err = authVM.errorMessage {
@@ -54,6 +63,7 @@ struct LoginView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.red.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .transition(.scale.combined(with: .opacity))
                 }
 
                 Button {
@@ -76,6 +86,8 @@ struct LoginView: View {
                 }
                 .disabled(authVM.isLoading || authVM.email.isEmpty || authVM.password.isEmpty)
                 .opacity((authVM.isLoading || authVM.email.isEmpty || authVM.password.isEmpty) ? 0.6 : 1)
+                .scaleEffect(isAppearing ? 1 : 0.95)
+                .opacity(isAppearing ? 1 : 0)
 
                 HStack(spacing: 4) {
                     Text("Don't have an account?")
@@ -90,6 +102,7 @@ struct LoginView: View {
                     }
                 }
                 .padding(.top, 8)
+                .opacity(isAppearing ? 1 : 0)
 
                 HStack {
                     Rectangle()
@@ -104,6 +117,7 @@ struct LoginView: View {
                         .frame(height: 1)
                 }
                 .padding(.vertical, 8)
+                .opacity(isAppearing ? 1 : 0)
 
                 Button {
                     Haptics.light()
@@ -143,7 +157,8 @@ struct LoginView: View {
                     )
                 }
                 .disabled(authVM.isLoading)
-                .opacity(authVM.isLoading ? 0.6 : 1)
+                .opacity(authVM.isLoading ? 0.6 : (isAppearing ? 1 : 0))
+                .offset(y: isAppearing ? 0 : 20)
                 .alert("Google Sign-In Setup", isPresented: $showGoogleHelp) {
                     Button("OK", role: .cancel) { }
                 } message: {
@@ -162,8 +177,10 @@ struct LoginView: View {
         .background(Color.primaryBackground.ignoresSafeArea())
         .navigationTitle("Sign In")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1)) {
+                isAppearing = true
+            }
+        }
     }
 }
-
-
-

@@ -5,6 +5,7 @@ import Combine
 import SwiftUI
 #if canImport(GoogleSignIn)
 import GoogleSignIn
+import FirebaseCore
 #endif
 
 @MainActor
@@ -19,14 +20,33 @@ final class AuthViewModel: ObservableObject {
     @Published var errorMessage: String? = nil
     @Published var isLoading: Bool = false
 
+    // Enhanced auth awareness properties
+    @Published var currentUser: FirebaseAuth.User? = nil
+    
+    // Computed properties for auth awareness
+    var isGoogleUser: Bool {
+        guard let user = currentUser else { return false }
+        return user.providerData.contains { $0.providerID == "google.com" }
+    }
+    
+    var userEmail: String {
+        return currentUser?.email ?? ""
+    }
+    
+    var isAuthenticated: Bool {
+        return currentUser != nil
+    }
+
     private var handle: AuthStateDidChangeListenerHandle?
 
     init() {
         handle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             self?.userSession = user
+            self?.currentUser = user
         }
         // Check if there's already a signed-in user
         self.userSession = Auth.auth().currentUser
+        self.currentUser = Auth.auth().currentUser
     }
     
     deinit { 
@@ -41,6 +61,7 @@ final class AuthViewModel: ObservableObject {
         do {
             let result = try await Auth.auth().signIn(withEmail: email, password: password)
             self.userSession = result.user
+            self.currentUser = result.user
         } catch {
             self.errorMessage = "Sign in failed: \(error.localizedDescription)"
         }
@@ -59,6 +80,7 @@ final class AuthViewModel: ObservableObject {
                 try await change.commitChanges()
             }
             self.userSession = Auth.auth().currentUser
+            self.currentUser = Auth.auth().currentUser
         } catch {
             self.errorMessage = "Sign up failed: \(error.localizedDescription)"
         }
@@ -71,6 +93,7 @@ final class AuthViewModel: ObservableObject {
         do { 
             try Auth.auth().signOut()
             self.userSession = nil
+            self.currentUser = nil
         } catch { 
             self.errorMessage = "Sign out failed: \(error.localizedDescription)"
         }
@@ -111,6 +134,7 @@ final class AuthViewModel: ObservableObject {
             // Sign in to Firebase
             let authResult = try await Auth.auth().signIn(with: credential)
             self.userSession = authResult.user
+            self.currentUser = authResult.user
             
             // Success feedback
             ToastCenter.shared.success("Signed in as \(authResult.user.email ?? "User")")

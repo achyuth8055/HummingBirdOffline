@@ -2,24 +2,49 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>audio</string>
-	</array>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.275535287631-be0bi63af2a01esqjgpo7rmhffccib94</string>
-			</array>
-		</dict>
-	</array>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>HummingBird needs microphone access for audio recording features.</string>
-	<key>NSAppleMusicUsageDescription</key>
-	<string>HummingBird accesses your music library to provide a seamless listening experience.</string>
+    <!-- Microsoft Auth (MSAL) -->
+    <key>MSAL_CLIENT_ID</key>
+    <string>eae75059-c540-440c-a747-b873b1cb80b6</string>
+    <key>MSAL_AUTHORITY</key>
+    <string>https://login.microsoftonline.com/common</string>
+
+    <!-- App background audio -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>audio</string>
+    </array>
+
+    <!-- Google & Microsoft URL Schemes -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <!-- Google Sign-In -->
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>com.googleusercontent.apps.275535287631-be0bi63af2a01esqjgpo7rmhffccib94</string>
+            </array>
+        </dict>
+        <!-- Microsoft Sign-In -->
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>msaleae75059-c540-440c-a747-b873b1cb80b6</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- Usage Descriptions -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>HummingBird needs microphone access for audio recording features.</string>
+    <key>NSAppleMusicUsageDescription</key>
+    <string>HummingBird accesses your music library to provide a seamless listening experience.</string>
+
+    <!-- Optional: Google API Key reference (for Maps, Drive, etc.) -->
+    <key>GAPI_KEY</key>
+    <string>AIzaSyCRYWgPV7p058tkAwz-PbnVUQrqn4lZlj0</string>
 </dict>
 </plist>

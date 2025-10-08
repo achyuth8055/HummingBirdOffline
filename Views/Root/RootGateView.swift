@@ -8,23 +8,40 @@
 
 import SwiftUI
 
-/// Routes between Onboarding and the Auth/App flow, and shows the splash overlay on every cold launch.
 struct RootGateView: View {
-    @AppStorage("HBHasSeenOnboarding") private var hasSeenOnboarding = false
+
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @State private var performedLegacyMigration = false
     @EnvironmentObject private var authVM: AuthViewModel
 
     var body: some View {
         Group {
-            if !hasSeenOnboarding {
+            if !hasCompletedOnboarding {
                 ModernOnboardingView {
-                    hasSeenOnboarding = true
-                    UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+                    markOnboardingComplete()
                 }
             } else {
                 ContentView()             // shows MainTabView when signed in; LoginView otherwise
             }
         }
-        .overlay(SplashOverlay().allowsHitTesting(true)) // remove this line if you don't use SplashOverlay
+        // Splash overlay removed to prevent re-show after onboarding completion.
         .preferredColorScheme(.dark)
+        .task { migrateLegacyIfNeeded() }
+    }
+
+    private func migrateLegacyIfNeeded() {
+        guard !performedLegacyMigration else { return }
+        performedLegacyMigration = true
+        // Legacy keys used: HBHasSeenOnboarding / hasCompletedOnboarding / HBHasSeenOnboarding
+        if !hasCompletedOnboarding {
+            let legacy1 = UserDefaults.standard.bool(forKey: "HBHasSeenOnboarding")
+            let legacy2 = UserDefaults.standard.bool(forKey: "HBHasSeenOnboarding")
+            if legacy1 || legacy2 { hasCompletedOnboarding = true }
+        }
+    }
+
+    private func markOnboardingComplete() {
+        hasCompletedOnboarding = true
+        UserDefaults.standard.set(true, forKey: "HBHasSeenOnboarding") // write legacy for safety
     }
 }

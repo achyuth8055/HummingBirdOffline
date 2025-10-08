@@ -77,10 +77,11 @@ struct HomeView: View {
                         .padding(.horizontal, 18)
                         .modifier(AnimatedEntry(didAppear: didAppear, delay: 0.3))
                 }
-                .padding(.top, 14)
-                .padding(.bottom, 32)
+                .padding(.top, 8)
+                .padding(.bottom, 120) // Extra space for mini player
             }
-            .background(Color.primaryBackground.ignoresSafeArea())
+            .background(Color.primaryBackground)
+            .clipped() // Prevent content from overflowing
             .navigationDestination(for: Destination.self, destination: destinationView)
             .sheet(isPresented: $showingImporter, content: { importSheet })
             .task {
@@ -583,10 +584,13 @@ private struct SongListScreen: View {
                     SongRow(song: song, playlist: songs, index: index)
                 }
             }
-            .padding()
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .padding(.bottom, 100) // Extra space for mini player
         }
-        .background(Color.primaryBackground.ignoresSafeArea())
+        .background(Color.primaryBackground)
         .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             if !songs.isEmpty {
                 ToolbarItem(placement: .primaryAction) {

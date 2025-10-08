@@ -182,22 +182,9 @@ struct PodcastPlayerView: View {
                 if value.translation.height > 0 { state = value.translation.height }
             }
             .onEnded { value in
-                if value.translation.height > 120 { vm.showFullPlayer = false }
+                if value.translation.height > 120 {
+                    dismiss()
+                }
             }
     }
-}
-
-#Preview {
-    let sample = Episode(
-        id: UUID().uuidString,
-        podcastID: "demo",
-        title: "Sample Episode",
-        publishedAt: Date(),
-        duration: 1800,
-        description: "",
-        audioURL: "https://example.com/audio.mp3"
-    )
-    PodcastPlayerViewModel.shared.preloadForPreview(sample, isPlaying: true, progress: 0.35)
-    return PodcastPlayerView()
-        .preferredColorScheme(.dark)
 }

@@ -79,6 +79,8 @@ struct ToastView: View {
         HStack(spacing: 10) {
             Image(systemName: iconName)
                 .foregroundColor(message.style.tint)
+                .font(.system(size: 14, weight: .semibold))
+                .symbolEffect(.bounce, value: message.id)
             Text(message.text)
                 .font(HBFont.body(13, weight: .medium))
                 .foregroundColor(.primaryText)
@@ -87,9 +89,19 @@ struct ToastView: View {
         .padding(.horizontal, 18)
         .background(
             Capsule(style: .continuous)
-                .fill(Color.secondaryBackground.opacity(0.96))
-                .shadow(color: .black.opacity(0.25), radius: 10, y: 6)
+                .fill(.ultraThinMaterial)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Color.secondaryBackground.opacity(0.8))
+                )
+                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
         )
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+        )
+        .scaleEffect(1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7, blendDuration: 0.1), value: message.id)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(message.text)
     }

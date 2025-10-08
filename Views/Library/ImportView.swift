@@ -5,6 +5,7 @@ import MediaPlayer
 struct ImportView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var authViewModel: AuthViewModel
     
     @StateObject private var viewModel = ImportViewModel()
     @State private var showingAppleMusicImporter = false
@@ -15,22 +16,143 @@ struct ImportView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
-                    headerSection
-                    cloudStorageSection
-                    localImportSection
+                    
+                    // MARK: - Available Sources
+                    VStack(alignment: .leading, spacing: 12) {
+                        sectionHeader("Available Sources")
+                        
+                        ImportCard(
+                            icon: "folder.fill", 
+                            iconColor: .blue, 
+                            title: "Files",
+                            subtitle: "Import tracks from files",
+                            actionTitle: "Select"
+                        ) {
+                            viewModel.showFileImporter = true
+                        }
+                        
+                        ImportCard(
+                            icon: "music.note", 
+                            iconColor: .red, 
+                            title: "Apple Music",
+                            subtitle: "Import tracks from apple music",
+                            actionTitle: "Select"
+                        ) {
+                            handleAppleMusicSelection()
+                        }
+                        
+                        // Google Drive with auth awareness
+                        ImportCard(
+                            icon: "cloud", 
+                            iconColor: .yellow, 
+                            title: "Google Drive",
+                            subtitle: getDriveSubtitle(),
+                            actionTitle: viewModel.driveManager.isAuthorized ? "Browse" : (viewModel.driveManager.isLoading ? "..." : "Connect"),
+                            isConnected: viewModel.driveManager.isAuthorized, 
+                            isLoading: viewModel.driveManager.isLoading
+                        ) {
+                            handleDriveTap()
+                        }
+                        
+                        // OneDrive
+                        ImportCard(
+                            icon: "cloud", 
+                            iconColor: .cyan, 
+                            title: "OneDrive",
+                            subtitle: getOneDriveSubtitle(),
+                            actionTitle: viewModel.oneDriveManager.isAuthorized ? "Browse" : (viewModel.oneDriveManager.isLoading ? "..." : "Connect"),
+                            isConnected: viewModel.oneDriveManager.isAuthorized, 
+                            isLoading: viewModel.oneDriveManager.isLoading
+                        ) {
+                            handleOneDriveTap()
+                        }
+                    }
+                    
+                    // MARK: - Import Status
+                    if let message = viewModel.lastImportMessage {
+                        VStack(alignment: .leading, spacing: 8) {
+                            sectionHeader("Import Status")
+                            
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text(message)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondaryText)
+                            }
+                            .padding(12)
+                            .background(Color.green.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                    }
+                    
+                    if let error = viewModel.lastErrorMessage {
+                        VStack(alignment: .leading, spacing: 8) {
+                            sectionHeader("Error")
+                            
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.red)
+                                Text(error)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondaryText)
+                            }
+                            .padding(12)
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                    }
+                    
+                    // MARK: - Coming Soon Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        sectionHeader("Coming Soon")
+                        
+                        ImportCard(
+                            icon: "desktopcomputer", 
+                            iconColor: .gray, 
+                            title: "Computer",
+                            subtitle: "Using Wi-Fi",
+                            actionTitle: "Coming Soon", 
+                            isDisabled: true
+                        ) {
+                            ToastCenter.shared.info("Wi-Fi Transfer is coming soon!")
+                        }
+                        
+                        ImportCard(
+                            icon: "shippingbox.fill", 
+                            iconColor: .blue, 
+                            title: "Dropbox",
+                            subtitle: "Tap to sign in",
+                            actionTitle: "Coming Soon", 
+                            isDisabled: true
+                        ) {
+                            ToastCenter.shared.info("Dropbox support is coming soon!")
+                        }
+
+                        ImportCard(
+                            icon: "archivebox.fill", 
+                            iconColor: .blue, 
+                            title: "Box",
+                            subtitle: "Tap to sign in",
+                            actionTitle: "Coming Soon", 
+                            isDisabled: true
+                        ) {
+                            ToastCenter.shared.info("Box support is coming soon!")
+                        }
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 24)
             }
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .background(Color.primaryBackground.ignoresSafeArea())
             .navigationTitle("Import")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {
                         dismiss()
                     }
-                    .foregroundColor(.green)
+                    .foregroundColor(.accentGreen)
                 }
             }
             .sheet(isPresented: $viewModel.showFileImporter) {
@@ -46,103 +168,53 @@ struct ImportView: View {
                 }
             }
             .sheet(isPresented: $showingDrivePicker) {
-                GoogleDrivePickerView(driveManager: viewModel.driveManager) { selected in
+                GoogleDrivePickerView(driveManager: viewModel.driveManager) { selectedFiles in
                     Task {
-                        for file in selected {
-                            _ = try? await viewModel.driveManager.download(file: file, to: LibraryImportService.libraryFolderURL)
-                        }
-                        // Optionally trigger a library scan/import here if needed
+                        let ids: [String] = selectedFiles.map { $0.id }
+                        await importFromGoogleDrive(fileIDs: ids)
                     }
                 }
             }
             .sheet(isPresented: $showingOneDrivePicker) {
-                OneDrivePickerView(oneDriveManager: viewModel.oneDriveManager) { selected in
+                OneDrivePickerView(oneDriveManager: viewModel.oneDriveManager) { selectedItems in
                     Task {
-                        for item in selected {
-                            _ = try? await viewModel.oneDriveManager.download(item: item, to: LibraryImportService.libraryFolderURL)
-                        }
+                        let ids: [String] = selectedItems.map { $0.id }
+                        await importFromOneDrive(itemIDs: ids)
                     }
                 }
             }
-        }
-    }
-    
-    // MARK: - Header Section
-    
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Import Your Music")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundColor(.primary)
-            
-            Text("Add music from your cloud storage, local files, or Apple Music library")
-                .font(.system(size: 15))
-                .foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-    
-    // MARK: - Cloud Storage Section
-    
-    private var cloudStorageSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader("Cloud Storage")
-            
-            VStack(spacing: 12) {
-                ImportCard(
-                    icon: "cloud.fill", iconColor: .blue, title: "Google Drive",
-                    subtitle: viewModel.driveManager.isAuthorized ? (viewModel.driveManager.accountName ?? "Connected") : "Connect to import",
-                    actionTitle: viewModel.driveManager.isAuthorized ? "Browse" : (viewModel.driveManager.isLoading ? "..." : "Connect"),
-                    isConnected: viewModel.driveManager.isAuthorized, isLoading: viewModel.driveManager.isLoading
-                ) {
-                    if viewModel.driveManager.isAuthorized { showingDrivePicker = true } else { handleDriveTap() }
-                }
-                
-                if viewModel.driveManager.isAuthorized {
-                    cloudFileSelectionList
-                }
-                
-                ImportCard(
-                    icon: "cloud.fill", iconColor: .cyan, title: "OneDrive",
-                    subtitle: viewModel.oneDriveManager.isAuthorized ? (viewModel.oneDriveManager.accountName ?? "Connected") : "Connect to import",
-                    actionTitle: viewModel.oneDriveManager.isAuthorized ? "Browse" : (viewModel.oneDriveManager.isLoading ? "..." : "Connect"),
-                    isConnected: viewModel.oneDriveManager.isAuthorized, isLoading: viewModel.oneDriveManager.isLoading
-                ) {
-                    if viewModel.oneDriveManager.isAuthorized { showingOneDrivePicker = true } else { handleOneDriveTap() }
-                }
-                
-                if viewModel.oneDriveManager.isAuthorized {
-                    oneDriveSelectionList
-                }
+            .onAppear {
+                // Check auth state and update Drive connection status
+                updateDriveConnectionStatus()
             }
         }
     }
     
-    // MARK: - Local Import Section
+    // MARK: - Auth-aware subtitle methods
     
-    private var localImportSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader("Import")
-            
-            VStack(spacing: 12) {
-                ImportCard(icon: "folder.fill", iconColor: .blue, title: "Files", subtitle: "Import from Files app", actionTitle: "Browse") {
-                    Haptics.light()
-                    viewModel.showFileImporter = true
-                }
-                
-                ImportCard(icon: "wifi", iconColor: .purple, title: "Wi-Fi Transfer", subtitle: "Transfer from Mac/PC over network", actionTitle: "Setup", isDisabled: true) {
-                    ToastCenter.shared.info("Wi-Fi Transfer coming soon")
-                }
-                
-                ImportCard(icon: "externaldrive.fill.badge.wifi", iconColor: .orange, title: "SMB", subtitle: "Import from network drive", actionTitle: "Connect", isDisabled: true) {
-                    ToastCenter.shared.info("SMB import coming soon")
-                }
-                
-                ImportCard(icon: "music.note", iconColor: .pink, title: "Apple Music", subtitle: "Import from your library", actionTitle: "Select") { handleAppleMusicSelection() }
-                
-                ImportCard(icon: "iphone.and.arrow.forward", iconColor: .green, title: "File Sharing", subtitle: "Connect via USB in Finder/iTunes", actionTitle: "Info", showChevron: true) {
-                    showFileSharingInfo()
-                }
+    private func getDriveSubtitle() -> String {
+        if viewModel.driveManager.isAuthorized {
+            return viewModel.driveManager.accountName ?? "Connected"
+        } else if authViewModel.isGoogleUser {
+            return "\(authViewModel.userEmail) (Google linked)"
+        } else {
+            return "Tap to sign in"
+        }
+    }
+    
+    private func getOneDriveSubtitle() -> String {
+        if viewModel.oneDriveManager.isAuthorized {
+            return viewModel.oneDriveManager.accountName ?? "Connected"
+        } else {
+            return "Tap to sign in"
+        }
+    }
+    
+    private func updateDriveConnectionStatus() {
+        // Auto-connect Google Drive if user is signed in with Google
+        if authViewModel.isGoogleUser && !viewModel.driveManager.isAuthorized {
+            Task {
+                await autoConnectGoogleDrive()
             }
         }
     }
@@ -151,34 +223,72 @@ struct ImportView: View {
     
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 20, weight: .semibold))
-            .foregroundColor(.primary)
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundColor(.secondaryText)
+            .padding(.horizontal, 4)
     }
     
     // MARK: - Actions
     
     private func handleDriveTap() {
         Haptics.light()
-        Task {
-            if !viewModel.driveManager.isAuthorized {
-                let ok = await viewModel.driveManager.authorize()
-                if ok { ToastCenter.shared.success("Google Drive connected"); await viewModel.refreshDrive() }
-                else { ToastCenter.shared.error("Drive auth failed") }
-            } else {
+        
+        if viewModel.driveManager.isAuthorized {
+            // Already authorized, show picker
+            Task {
                 await viewModel.refreshDrive()
+                showingDrivePicker = true
             }
+        } else if authViewModel.isGoogleUser {
+            // Auto-authorize with Google user's email
+            Task {
+                await autoConnectGoogleDrive()
+            }
+        } else {
+            // Manual authorization
+            Task {
+                let success = await viewModel.driveManager.authorize()
+                if success {
+                    ToastCenter.shared.success("Google Drive connected")
+                    await viewModel.refreshDrive()
+                    showingDrivePicker = true
+                } else {
+                    ToastCenter.shared.error("Drive authorization failed.")
+                }
+            }
+        }
+    }
+    
+    private func autoConnectGoogleDrive() async {
+        let success = await viewModel.driveManager.authorizeWithGoogleUser()
+        if success {
+            ToastCenter.shared.success("Google Drive auto-connected")
+            await viewModel.refreshDrive()
+        } else {
+            ToastCenter.shared.error("Failed to auto-connect Google Drive")
         }
     }
     
     private func handleOneDriveTap() {
         Haptics.light()
-        Task {
-            if !viewModel.oneDriveManager.isAuthorized {
-                let ok = await viewModel.oneDriveManager.authorize()
-                if ok { ToastCenter.shared.success("OneDrive connected"); await viewModel.refreshOneDrive() }
-                else { ToastCenter.shared.error("OneDrive auth failed") }
-            } else {
+        
+        if viewModel.oneDriveManager.isAuthorized {
+            // Already authorized, show picker
+            Task {
                 await viewModel.refreshOneDrive()
+                showingOneDrivePicker = true
+            }
+        } else {
+            // Manual authorization
+            Task {
+                let success = await viewModel.oneDriveManager.authorize()
+                if success {
+                    ToastCenter.shared.success("OneDrive connected")
+                    await viewModel.refreshOneDrive()
+                    showingOneDrivePicker = true
+                } else {
+                    ToastCenter.shared.error("OneDrive authorization failed.")
+                }
             }
         }
     }
@@ -192,10 +302,45 @@ struct ImportView: View {
                 if added > 0 {
                     Haptics.success()
                     ToastCenter.shared.success("Imported \(added) \(added == 1 ? "song" : "songs")")
+                    viewModel.lastImportedCount = added
+                    viewModel.lastImportMessage = "Successfully imported \(added) local files"
                 } else {
                     ToastCenter.shared.info("These songs are already in your library")
                 }
+                viewModel.lastErrorMessage = nil
             }
+        }
+    }
+    
+    private func importFromGoogleDrive(fileIDs: [String]) async {
+        let imported = await ImportCoordinator.importFromGoogleDrive(fileIDs: fileIDs, context: modelContext)
+        
+        await MainActor.run {
+            if imported > 0 {
+                Haptics.success()
+                ToastCenter.shared.success("Imported \(imported) song(s) from Google Drive")
+                viewModel.lastImportedCount = imported
+                viewModel.lastImportMessage = "Successfully imported \(imported) songs from Google Drive (streaming)"
+            } else {
+                ToastCenter.shared.info("No new songs were imported")
+            }
+            viewModel.lastErrorMessage = nil
+        }
+    }
+    
+    private func importFromOneDrive(itemIDs: [String]) async {
+        let imported = await ImportCoordinator.importFromOneDrive(itemIDs: itemIDs, context: modelContext)
+        
+        await MainActor.run {
+            if imported > 0 {
+                Haptics.success()
+                ToastCenter.shared.success("Imported \(imported) song(s) from OneDrive")
+                viewModel.lastImportedCount = imported
+                viewModel.lastImportMessage = "Successfully imported \(imported) songs from OneDrive (streaming)"
+            } else {
+                ToastCenter.shared.info("No new songs were imported")
+            }
+            viewModel.lastErrorMessage = nil
         }
     }
     
@@ -210,12 +355,17 @@ struct ImportView: View {
             Task {
                 let granted = await AppleMusicImporter.requestPermission()
                 await MainActor.run {
-                    if granted { showingAppleMusicImporter = true }
-                    else { ToastCenter.shared.error("Enable Media Library access in Settings to import Apple Music.") }
+                    if granted { 
+                        showingAppleMusicImporter = true 
+                    } else { 
+                        ToastCenter.shared.error("Enable Media Library access in Settings to import Apple Music.")
+                        viewModel.lastErrorMessage = "Apple Music permission denied"
+                    }
                 }
             }
         default:
             ToastCenter.shared.error("Enable Media Library access in Settings to import Apple Music.")
+            viewModel.lastErrorMessage = "Apple Music permission denied"
         }
     }
     
@@ -228,6 +378,8 @@ struct ImportView: View {
             if result.imported > 0 {
                 Haptics.success()
                 ToastCenter.shared.success("Imported \(result.imported) song(s)")
+                viewModel.lastImportedCount = result.imported
+                viewModel.lastImportMessage = "Successfully imported \(result.imported) Apple Music songs"
             }
             
             if result.skipped > 0 {
@@ -236,84 +388,11 @@ struct ImportView: View {
             
             if !result.errors.isEmpty {
                 ToastCenter.shared.error("Failed to import \(result.errors.count) song(s)")
+                viewModel.lastErrorMessage = "Failed to import \(result.errors.count) Apple Music songs"
+            } else {
+                viewModel.lastErrorMessage = nil
             }
         }
-    }
-    
-    private func showFileSharingInfo() {
-        Haptics.light()
-        ToastCenter.shared.info("Connect your device to Mac/PC and use Finder or iTunes to transfer files")
-    }
-}
-
-// MARK: - Cloud File Selection Lists
-private extension ImportView {
-    var cloudFileSelectionList: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if viewModel.driveManager.isLoading { ProgressView().progressViewStyle(.circular) }
-            ForEach(viewModel.driveManager.files) { file in
-                if file.type == .audio {
-                    HStack {
-                        Button(action: { viewModel.toggleDriveSelection(fileID: file.id) }) {
-                            Image(systemName: viewModel.selectedDriveFileIDs.contains(file.id) ? "checkmark.circle.fill" : "circle")
-                                .foregroundColor(viewModel.selectedDriveFileIDs.contains(file.id) ? .green : .secondary)
-                        }.buttonStyle(.plain)
-                        Text(file.name).font(.system(size: 13)).lineLimit(1)
-                        Spacer()
-                        if let size = file.size { Text(ByteCountFormatter.string(fromByteCount: size, countStyle: .file)).font(.caption2).foregroundColor(.secondary) }
-                    }
-                    .padding(.horizontal, 4)
-                }
-            }
-            if !viewModel.selectedDriveFileIDs.isEmpty {
-                Button {
-                    Task { await viewModel.importDriveSelections(context: modelContext) }
-                } label: {
-                    Text("Import Selected (\(viewModel.selectedDriveFileIDs.count))")
-                        .font(.system(size: 13, weight: .semibold))
-                        .padding(.vertical, 6).padding(.horizontal, 12)
-                        .background(Capsule().fill(Color.green.opacity(0.2)))
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 4)
-            }
-        }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.tertiarySystemGroupedBackground)))
-    }
-    
-    var oneDriveSelectionList: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if viewModel.oneDriveManager.isLoading { ProgressView().progressViewStyle(.circular) }
-            ForEach(viewModel.oneDriveManager.items) { item in
-                if item.type == .audio {
-                    HStack {
-                        Button(action: { viewModel.toggleOneDriveSelection(itemID: item.id) }) {
-                            Image(systemName: viewModel.selectedOneDriveItemIDs.contains(item.id) ? "checkmark.circle.fill" : "circle")
-                                .foregroundColor(viewModel.selectedOneDriveItemIDs.contains(item.id) ? .green : .secondary)
-                        }.buttonStyle(.plain)
-                        Text(item.name).font(.system(size: 13)).lineLimit(1)
-                        Spacer()
-                        if let size = item.size { Text(ByteCountFormatter.string(fromByteCount: size, countStyle: .file)).font(.caption2).foregroundColor(.secondary) }
-                    }
-                    .padding(.horizontal, 4)
-                }
-            }
-            if !viewModel.selectedOneDriveItemIDs.isEmpty {
-                Button {
-                    Task { await viewModel.importOneDriveSelections(context: modelContext) }
-                } label: {
-                    Text("Import Selected (\(viewModel.selectedOneDriveItemIDs.count))")
-                        .font(.system(size: 13, weight: .semibold))
-                        .padding(.vertical, 6).padding(.horizontal, 12)
-                        .background(Capsule().fill(Color.green.opacity(0.2)))
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 4)
-            }
-        }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.tertiarySystemGroupedBackground)))
     }
 }
 
@@ -333,19 +412,15 @@ private struct ImportCard: View {
     var body: some View {
         Button(action: isDisabled ? {} : action) {
             HStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(iconColor.opacity(0.15))
-                        .frame(width: 56, height: 56)
-                    Image(systemName: icon)
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(iconColor)
-                }
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundColor(iconColor)
+                    .frame(width: 36, height: 36)
                 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(isDisabled ? .secondary : .primary)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(isDisabled ? .secondary.opacity(0.7) : .primary)
                     Text(subtitle)
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
@@ -355,44 +430,27 @@ private struct ImportCard: View {
                 Spacer()
                 
                 if isLoading {
-                    ProgressView().progressViewStyle(.circular).scaleEffect(0.9)
-                } else if showChevron {
+                    ProgressView().progressViewStyle(.circular).scaleEffect(0.8)
+                } else if !isDisabled {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.secondary)
-                } else {
-                    Text(actionTitle)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(isConnected ? .green : .blue)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Capsule().fill((isConnected ? Color.green : Color.blue).opacity(0.15)))
                 }
             }
             .padding(16)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.secondaryBackground))
         }
         .buttonStyle(.plain)
-        .opacity(isDisabled ? 0.5 : 1.0)
+        .opacity(isDisabled ? 0.6 : 1.0)
     }
 }
 
-
-// MARK: - Preview
-
 #Preview {
-    // Creates a temporary, in-memory database for the preview
-    let previewContainer: ModelContainer = {
-        do {
-            let config = ModelConfiguration(isStoredInMemoryOnly: true)
-            return try ModelContainer(for: Song.self, configurations: config)
-        } catch {
-            fatalError("Failed to create model container for preview: \(error)")
-        }
-    }()
-
-    // FIX: Removed the 'return' keyword
-    ImportView()
-        .modelContainer(previewContainer)
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: Song.self, configurations: config)
+    
+    return ImportView()
+        .modelContainer(container)
         .preferredColorScheme(.dark)
 }
+

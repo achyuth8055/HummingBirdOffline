@@ -100,11 +100,18 @@ struct MiniPlayerView: View {
                     // Haptics.light() // Custom helper
                     player.togglePlayPause()
                 } label: {
-                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.title2)
-                        .contentTransition(.symbolEffect(.replace))
+                    if player.isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .primary))
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.title2)
+                            .contentTransition(.symbolEffect(.replace))
+                    }
                 }
                 .buttonStyle(.plain)
+                .disabled(player.isLoading)
                 
                 Button {
                     // Haptics.light() // Custom helper

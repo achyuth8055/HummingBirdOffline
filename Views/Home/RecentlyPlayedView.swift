@@ -39,12 +39,15 @@ struct RecentlyPlayedView: View {
                             SongRow(song: song, collection: recent)
                         }
                     }
-                    .padding()
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 100) // Extra space for mini player
                 }
             }
         }
-        .background(Color.primaryBackground.ignoresSafeArea())
+        .background(Color.primaryBackground)
         .navigationTitle("Recently Played")
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             // Add a "Play All" button for convenience
             if !recent.isEmpty {

@@ -8,7 +8,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var phase
     @ObservedObject private var toastCenter = ToastCenter.shared
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false // unified key managed in RootGateView
     @AppStorage("lastSeenVersion") private var lastSeenVersion: String = ""
     @State private var showWhatsNew = false
 
@@ -49,12 +49,17 @@ struct ContentView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 32)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .scale(scale: 0.95)).combined(with: .opacity),
+                            removal: .move(edge: .bottom).combined(with: .scale(scale: 0.95)).combined(with: .opacity)
+                        )
+                    )
                     .allowsHitTesting(false)
             }
         }
         .background(Color.primaryBackground.ignoresSafeArea())
-        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: toastCenter.current)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0.1), value: toastCenter.current)
         .onChange(of: authVM.userSession) { _, session in
             if session == nil {
                 PlayerViewModel.shared.clearQueueAndUI()
@@ -67,11 +72,7 @@ struct ContentView: View {
                 }
             }
         }
-        .fullScreenCover(isPresented: Binding(get: { authVM.userSession != nil && !hasCompletedOnboarding }, set: { _ in })) {
-            OnboardingView {
-                hasCompletedOnboarding = true
-            }
-        }
+        // Onboarding fullScreenCover removed; now handled exclusively by RootGateView before ContentView appears.
         .sheet(isPresented: $showWhatsNew) {
             WhatsNewView()
         }

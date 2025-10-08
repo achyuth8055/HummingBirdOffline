@@ -60,17 +60,33 @@ struct SettingsView: View {
             }
             
             Section("Profile") {
-                HStack {
-                    Image(systemName: "person.circle.fill").font(.largeTitle).foregroundColor(.accentGreen)
-                    VStack(alignment: .leading) {
-                        Text(authVM.userSession?.displayName ?? authVM.userSession?.email ?? "Guest")
-                        Text("Signed in").font(.caption).foregroundColor(.secondaryText)
-                    }
-                    Spacer()
-                    Button { /* open profile later */ } label: {
-                        Image(systemName: "bell.badge").font(.title3)
+                NavigationLink {
+                    ProfileSettingsView()
+                        .environmentObject(authVM)
+                } label: {
+                    HStack {
+                        Image(systemName: "person.circle.fill")
+                            .font(.largeTitle)
+                            .foregroundColor(.accentGreen)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(authVM.userSession?.displayName ?? authVM.userSession?.email ?? "Guest")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.primaryText)
+                            
+                            Text("View and edit profile")
+                                .font(.caption)
+                                .foregroundColor(.secondaryText)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.secondaryText)
                     }
                 }
+                
                 Button("Sign Out") { authVM.signOut() }.foregroundColor(.red)
             }
 
